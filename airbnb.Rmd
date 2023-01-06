@@ -4,6 +4,8 @@ output: html_document
 date: "2022-11-13"
 ---
 
+
+
 ```{r}
 library(dplyr, warn.conflicts = FALSE)
 library(tidygeocoder)
@@ -24,13 +26,17 @@ airbnb <- read_csv("airbnb.csv")
 airbnb
 ```
 
-```{r} 
+```{r}
 # gets addresses based on GPS coordinates. Not necessary, just wanted to see how accurate the detection was.
 #addys <- airbnb %>%
   #reverse_geocode(lat = latitude, long = longitude, method = 'arcgis',
                   #address = address_found, full_results = FALSE)
+
 ```
 
+```{r}
+#write.csv(addys, "airbnb.csv", row.names=FALSE)
+```
 
 ```{r}
 # Davidson county border
@@ -39,7 +45,7 @@ nash <- st_read("Davidson.geojson")
 
 ```{r}
 # clean coordinates for Google Street View links
-airbnb$coord <- paste(airbnb$latitude, airbnb$longitude, sep=",")
+airbnb$coord<-paste(airbnb$latitude,airbnb$longitude,sep=",")
 airbnb
 ```
 
@@ -52,7 +58,7 @@ airbnb
 ```{r}
 # make Google Street View links clickable
 content <- airbnb %>% 
-    mutate(popup = paste0('<a href =', links, '>', address_found, '</a>'))
+    mutate(popup = paste0('<a href =', links, 'target=_blank>', address_found, '</a>'))
 ```
 
 
@@ -90,19 +96,19 @@ pal <- colorFactor(
 ```{r}
 # link properties to Airbnb website listing
 total <- merged %>% 
-    mutate(popup2 = paste0('<a href =', listing_url, '>', name, '</a>'))
+    mutate(popup2 = paste0('<a target=_blank href =', listing_url, '>', name, '</a>'))
 total
 ```
 
 ```{r}
 total <- total %>% 
-    mutate(popup = paste0('<a href =', links, '>', address_found, '</a>'))
+    mutate(popup = paste0('<a target=_blank href =', links, '>', address_found, '</a>'))
 ```
 
 ```{r}
 # Places picture of property in popup
 total <- total %>% 
-    mutate(popup3 = paste0("<img src='", picture_url, "' width='200px' height='100px'>"))
+    mutate(popup3 = paste0("<img src='",picture_url,"' width='200px' height='100px'>"))
 ```
 
 ```{r}
@@ -164,9 +170,8 @@ district_tally <- merge(districts, d, by.x = "District", by.y = "neighbourhood")
 district_tally
 ```
 
-
 ```{r}
-# Choropleth map of airbnb's by district
+# Choropleth map of airbnbs by district
 leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
     addProviderTiles("Stamen.TonerHybrid")  %>% 
     addPolygons(data = district_json, 
@@ -205,8 +210,7 @@ leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>%
     addLayersControl(overlayGroups =c("home", "hotel", "private", "shared"))  
 ```
 ```{r}
-# read in sample of Nashville crime data
-crime <- read_csv("crimef.csv")
+#crime <- read_csv("crimef.csv")
 ```
 
 ```{r}
@@ -217,82 +221,66 @@ ab_sf <- st_as_sf(total, coords =c("longitude","latitude"), crs =4326)
 
 ```{r}
 # convert crime dataframe to sf object
-crime_sf <- st_as_sf(crime, coords =c("Longitude","Latitude"), crs =4326)
+#crime_sf <- st_as_sf(crime, coords =c("Longitude","Latitude"), crs =4326)
 ```
 
 
 ```{r}
-# read in larger list of Nashville crimes to test limits of leaflet
+# read in crime data
 crimes <- read_csv("crimes.csv")
 ```
 ```{r}
 # remove duplicates
-crimes <- crimes[!duplicated(crimes), ]
+crimes <- distinct(crimes)
 ```
 
 
 ```{r}
-# found that leaflet breaks down around 78k points total - spread across 7733 airbnb's and about 70k crimes (cluster markers)
-leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
-    addProviderTiles("CartoDB.Positron") %>%
-    addCircleMarkers(data = crimes, radius = 3, weight=3, color="red", label = ~Offense_Description,
-                      clusterOptions = markerClusterOptions()) %>% 
-    addCircleMarkers(data = ab_sf, radius = 1, weight=1)
+#crimes <- crimes[!duplicated(crimes), ]
 ```
 
+
 ```{r}
-# locates all crimes within a half a mile distance of airbnb properties and returns sgbp index list
-half_mile <- st_is_within_distance(ab_sf, crime_sf, dist = 804.672)
-half_mile
+#half_mile <- st_is_within_distance(ab_sf, crime_sf, dist = 804.672)
 ```
 
 ```{r}
 # testing for loop of sgbp list
-indices <- c(1:10)
+#indices <- c(1:10)
 ```
 
 ```{r}
-# for loop with subsetting index and rows
-for(i in 1:length(indices)) {  
-  print(crime_sf[half_mile[[i]], c(5,6,9)])}
+#for(i in 1:length(indices)) {  
+  #print(crime_sf[half_mile[[i]], c(5,6,9)])}
 ```
 
 
 ```{r}
-# returns number of rows (crimes) per airbnb property (by index)
-nrow(crime_sf[half_mile[[88]], c(5,6,9)]) 
-```
-
-
-
-```{r}
-colnames(crime_sf)[9] = "offense"
+#nrow(crime_sf[half_mile[[88]], c(5,6,9)]) 
 ```
 
 
 
 ```{r}
-# experimenting with plot summary of crimes within certain distance of airbnb properties. Want to have this visible in Shiny upon click of property
-ggplot(crime_sf[half_mile[[71]], c(5,6,9)], 
-       aes(x=2, y=nrow(crime_sf[half_mile[[71]], c(5,6,9)]), fill=offense)) + 
-  geom_bar(stat="identity", color="white") + 
-  coord_polar("y", start=0) +
-  theme_void() +
-  scale_fill_brewer(palette="Dark2") +
-  ggtitle(paste(nrow(crime_sf[half_mile[[71]], c(5,6,9)]), "incidents")) +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  xlim(c(0.5, 2.5))
+#colnames(crime_sf)[9] = "offense"
 ```
 
 
 
 ```{r}
-max(lengths(half_mile))
+# ggplot(crime_sf[half_mile[[47]], c(5,6,9)], aes(x=2, y=nrow(crime_sf[half_mile[[47]], c(5,6,9)]), fill=offense)) + 
+#   geom_bar(stat="identity", color="white") + 
+#   coord_polar("y", start=0) +
+#   theme_void() +
+#   scale_fill_brewer(palette="Dark2") +
+#   ggtitle(paste(nrow(crime_sf[half_mile[[47]], c(5,6,9)]), "incidents")) +
+#   theme(plot.title = element_text(hjust = 0.5)) +
+#   xlim(c(0.5, 2.5))
 ```
 
 
 ```{r}
-ab_sf$indicator <- st_is_within_distance(ab_sf, crime_sf, dist = 804.672) 
+#ab_sf$indicator <- st_is_within_distance(ab_sf, crime_sf, dist = 804.672) 
 ```
 
 
@@ -302,29 +290,16 @@ ab_sf$indicator <- st_is_within_distance(ab_sf, crime_sf, dist = 804.672)
 nash %>% 
 leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
     addProviderTiles("CartoDB.Positron")  %>% 
-    addCircleMarkers(data = total, 
-                     radius = 2 , 
-                     weight = 1, 
-                     label = ~name,
-                     popup = paste("<h3>Airbnb</h3>", 
-                                   total$popup3, 
-                                   "<br>", "Name:", 
-                                   total$popup2,"<br>",
-                                   total$popup),
+    addCircleMarkers(data = total, radius = 2 , weight = 1, label = ~name,
+                     popup = paste("<h3>Airbnb</h3>", total$popup3, "<br>", "Name:", 
+                     total$popup2,"<br>" ,total$popup),
                      color= ~pal(room_type), group = "name") %>%
     addSearchFeatures(
-      targetGroups ="name", options = searchFeaturesOptions(zoom = 12,
+      targetGroups ="name", options = searchFeaturesOptions(zoom =12,
       openPopup = TRUE, firstTipSubmit = TRUE,
       autoCollapse = FALSE, hideMarkerOnCollapse = TRUE)) %>%
-    addCircleMarkers(data = crimes, 
-                     radius = 3, 
-                     weight=3, 
-                     color="red", 
-                     label = paste(crimes$Offense_Description, 
-                                   "<br>Date:", 
-                                   crimes$Incident_Occurred) %>% 
-                                   lapply(htmltools::HTML),
-                     clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier=1.5)) %>% 
+    addCircleMarkers(data = crimes, radius = 3, weight=3, color="red", label = paste(crimes$Offense_Description, "<br>Date:", crimes$Incident_Occurred) %>% lapply(htmltools::HTML),
+                      clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier=1.5)) %>% 
     addLegend(position ="topright", pal = pal, values = total$room_type) %>%
     setView(lat = 36.1627, lng = -86.7816, zoom = 11) %>%
     addLayersControl(overlayGroups =c("home", "hotel", "private", "shared")) %>%
@@ -338,42 +313,48 @@ leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>%
     addResetMapButton()
 ```
 ```{r}
+# remove missing coordinates
 crimes <- crimes[!is.na(crimes$Latitude),]
 ```
 
 
 ```{r}
+#convert crimes to sf object
 crimes_sf <- st_as_sf(crimes, coords =c("Longitude","Latitude"), crs =4326)
 ```
 
-
+```{r}
+# locates all crimes within a quarter mile distance of airbnb properties and returns sgbp index list
+quarter_mile <- st_is_within_distance(ab_sf, crimes_sf, dist = 402.336)
+quarter_mile
+```
 
 ```{r}
-# heatmap
-leaflet() %>%
-  # add a dark basemap
-  addProviderTiles("CartoDB.DarkMatter") %>%
- 
-  # add a heatmap
-  addWebGLHeatmap(
-    data = crimes,
-    size = 2000,
-    units = "m",
-    intensity = 0.1,
-    gradientTexture = "skyline",
-    alphaRange = 1,
-    opacity = 0.8
-    ) %>%
-  # add a measure control to the bottom left
-  addMeasure(
-    position = "bottomleft",
-    primaryLengthUnit = "meters",
-    primaryAreaUnit = "sqmeters",
-    activeColor = "#0bd3d3",
-    completedColor = "#f890e7"
-  ) %>%
-  addMiniMap(tiles="CartoDB.DarkMatter")
+# leaflet() %>%
+#   # add a dark basemap
+#   addProviderTiles("CartoDB.DarkMatter") %>%
+#  
+#   # add a heatmap
+#   addWebGLHeatmap(
+#     data = crimes,
+#     size = 2000,
+#     units = "m",
+#     intensity = 0.1,
+#     gradientTexture = "skyline",
+#     alphaRange = 1,
+#     opacity = 0.8
+#     ) %>%
+#   # add a measure control to the bottom left
+#   addMeasure(
+#     position = "bottomleft",
+#     primaryLengthUnit = "meters",
+#     primaryAreaUnit = "sqmeters",
+#     activeColor = "#0bd3d3",
+#     completedColor = "#f890e7"
+#   ) %>%
+#   addMiniMap(tiles="CartoDB.DarkMatter")
 ```
+
 
 ```{r}
 # general cleaning of categories
@@ -385,12 +366,13 @@ crimes$Offense_Description <- gsub("BURGLARY- AGGRAVATED", "BURGLARY - AGGRAVATE
 
 
 ```{r}
-# with current data set, motor vehicle burglary accounts for the most crime in Nashville 2022 at 14%. Next is simple assault at 9%.
-df_category <- sort(table(crimes$Offense_Description), decreasing = TRUE)
-df_category <- data.frame(df_category[df_category > 100])
-colnames(df_category) <- c("Category", "Frequency")
-df_category$Percentage <- df_category$Frequency / sum(df_category$Frequency)
-df_category
+# sorts crimes by category
+crime_category <- sort(table(crimes$Offense_Description), decreasing = TRUE)
+crime_category <- data.frame(crime_category[crime_category > 100])
+colnames(crime_category) <- c("Category", "Frequency")
+crime_category$Percentage <- crime_category$Frequency / sum(crime_category$Frequency)
+#datatable(df_category, options = list(scrollX='400px'))
+crime_category
 ```
 
 ```{r}
@@ -413,5 +395,31 @@ crimes$id <- seq.int(nrow(crimes))
 date_filter <- crimes
 ```
 
+```{r}
+# assign unique id to each airbnb (same as index) for Shiny interactivity
+total$id <- seq.int(nrow(total))
+```
+
+```{r}
+colnames(crimes_sf)[6] = "offense"
+```
+
+
+```{r}
+# experimenting with plot summary of crimes within certain distance of airbnb properties. Want to have this visible in Shiny upon click of property
+ggplot(crimes_sf[quarter_mile[[47]], c(3,4,6)], aes(x=2, y=nrow(crimes_sf[quarter_mile[[47]], c(3,4,6)]), fill=offense)) + 
+  geom_bar(stat="identity", color="white") + 
+  coord_polar("y", start=0) +
+  theme_void() +
+  scale_fill_brewer(palette="Dark2") +
+  ggtitle(paste(nrow(crimes_sf[quarter_mile[[47]], c(3,4,6)]), "incidents")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(c(0.5, 2.5))
+```
+
+
+```{r}
+max(lengths(quarter_mile))
+```
 
 
