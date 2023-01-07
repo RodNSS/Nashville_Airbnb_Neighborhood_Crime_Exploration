@@ -27,7 +27,7 @@ ui <- fluidPage(
                            min = '2022-07-01', 
                            max = '2023-01-04'
                 ),
-          plotOutput("donut")
+          plotlyOutput("donut")
         ),
   
   mainPanel(
@@ -68,9 +68,12 @@ server <- function(input, output, session) {
                                      total$popup2,"<br>" ,total$popup),
                        color= ~pal(room_type), group = "name", layerId = ~id) %>%
       addSearchFeatures(
-        targetGroups ="name", options = searchFeaturesOptions(zoom =14,
-                                                              openPopup = TRUE, firstTipSubmit = TRUE,
-                                                              autoCollapse = FALSE, hideMarkerOnCollapse = TRUE)) %>%
+        targetGroups ="name", 
+        options = searchFeaturesOptions(zoom =14,
+                                        openPopup = TRUE, 
+                                        firstTipSubmit = TRUE,
+                                        autoCollapse = FALSE, 
+                                        hideMarkerOnCollapse = TRUE)) %>%
       addCircleMarkers(data = date_filter(), 
                        radius = 3, 
                        weight=3, 
@@ -79,7 +82,7 @@ server <- function(input, output, session) {
                                      "<br>Date:", date_filter()$Incident_Occurred) %>% 
                          lapply(htmltools::HTML), 
                        clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier=1.5),
-                       popup = ~as.character(Offense_Description), layerId = as.character(date_filter()$id)) %>% 
+                       popup = ~as.character(Offense_Description), layerId = as.character(date_filter()$uid)) %>% 
       addMeasure(
         position = "topleft",
         primaryLengthUnit = "meters",
@@ -96,18 +99,21 @@ server <- function(input, output, session) {
     data_of_click$clickedMarker <- input$mymap_marker_click
   })
   # plot for crimes within a quarter mile of airbnb
-  output$donut <- renderPlot({
-    ggplot(crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], c(3,4,6)], 
-           aes(x=2, y=nrow(crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], c(3,4,6)]), 
-               fill=offense)) + 
-      geom_bar(stat="identity", color="white") + 
-      coord_polar("y", start=0) +
-      theme_void() +
-      scale_fill_brewer(palette="Dark2") +
-      ggtitle(paste("Number of incidents within a quarter mile:", 
-                    nrow(crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], c(3,4,6)]))) +
-      theme(plot.title = element_text(hjust = 0.5)) +
-      xlim(c(0.5, 2.5))
+  output$donut <- renderPlotly({
+    crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], 6] %>%
+      group_by(offense) %>%
+      summarize(count = n()) %>%
+      plot_ly(labels = ~offense, 
+              values= ~count, 
+              marker = list(colors = virid,
+                            line = list(color = '#FFFFFF', 
+                                        width = 1))) %>%
+      add_pie(hole = 0.6) %>%
+      layout(title = paste(nrow(crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], 6]),
+                           "crimes within a quarter mile"),  showlegend = F,
+             xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+             yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
+    
   })
   
   map_leaf <- leafletProxy("mymap") 
@@ -154,7 +160,7 @@ server <- function(input, output, session) {
     proxy <- leafletProxy('mymap')
     proxy %>%
       addAwesomeMarkers(popup = as.character(row_selected$Offense_Description),
-                        layerId = as.character(row_selected$id),
+                        layerId = as.character(row_selected$uid),
                         lng = row_selected$Longitude,
                         lat = row_selected$Latitude,
                         icon = highlight_icon) #%>%
@@ -164,7 +170,7 @@ server <- function(input, output, session) {
     if(!is.null(prev_row())){
       proxy %>%
         addMarkers(popup = as.character(prev_row()$Offense_Description),
-                   layerId = as.character(prev_row()$id),
+                   layerId = as.character(prev_row()$uid),
                    lng = prev_row()$Longitude,
                    lat = prev_row()$Latitude)
     }
@@ -173,9 +179,9 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$mymap_marker_click, {
-    clickId <- input$mymap_marker_click$id
+    clickId <- input$mymap_marker_click$uid
     dataTableProxy("table1") %>%
-      selectRows(which(date_filter()$id == clickId)) %>%
+      selectRows(which(date_filter()$uid == clickId)) %>%
       selectPage(which(input$table1_rows_all == clickId) %/% input$table1_state$length + 1)
   })
   
