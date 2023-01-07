@@ -19,6 +19,8 @@ library(htmltools)
 library(ggplot2)
 library(DT)
 library(glue)
+library(plotly)
+library(viridisLite)
 ```
 ```{r}
 # import Nashville airbnb list from insideairbnb.com
@@ -317,6 +319,13 @@ leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>%
 crimes <- crimes[!is.na(crimes$Latitude),]
 ```
 
+```{r}
+# general cleaning of categories
+crimes$Offense_Description <- gsub("BURGLARY- MOTOR VEHICLE", "BURGLARY - MOTOR VEHICLE", crimes$Offense_Description) #remove () from 
+```
+```{r}
+crimes$Offense_Description <- gsub("BURGLARY- AGGRAVATED", "BURGLARY - AGGRAVATED", crimes$Offense_Description)
+```
 
 ```{r}
 #convert crimes to sf object
@@ -357,15 +366,6 @@ quarter_mile
 
 
 ```{r}
-# general cleaning of categories
-crimes$Offense_Description <- gsub("BURGLARY- MOTOR VEHICLE", "BURGLARY - MOTOR VEHICLE", crimes$Offense_Description) #remove () from 
-```
-```{r}
-crimes$Offense_Description <- gsub("BURGLARY- AGGRAVATED", "BURGLARY - AGGRAVATED", crimes$Offense_Description)
-```
-
-
-```{r}
 # sorts crimes by category
 crime_category <- sort(table(crimes$Offense_Description), decreasing = TRUE)
 crime_category <- data.frame(crime_category[crime_category > 100])
@@ -388,7 +388,7 @@ glimpse(crimes$Incident_Occurred)
 ```
 ```{r}
 # assign unique id to each crime (same as index) for Shiny interactivity
-crimes$id <- seq.int(nrow(crimes))
+crimes$uid <- seq.int(nrow(crimes))
 ```
 
 ```{r}
@@ -420,6 +420,25 @@ ggplot(crimes_sf[quarter_mile[[47]], c(3,4,6)], aes(x=2, y=nrow(crimes_sf[quarte
 
 ```{r}
 max(lengths(quarter_mile))
+```
+
+```{r}
+virid <- brewer.pal(n = 11, name = "Spectral")
+```
+
+```{r}
+crimes_sf[quarter_mile[[150]], 6] %>%
+      group_by(offense) %>%
+      summarize(count = n()) %>%
+      plot_ly(labels = ~offense, 
+              values= ~count, 
+              marker = list(colors = virid,
+                            line = list(color = '#FFFFFF', 
+                                        width = 1))) %>%
+      add_pie(hole = 0.6) %>%
+      layout(title = paste(nrow(crimes_sf[quarter_mile[[150]], 6]),"crimes"),  showlegend = F,
+             xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+             yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
 ```
 
 
