@@ -1,19 +1,12 @@
-#
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
 library(shiny)
 library(bslib)
 library(thematic)
 thematic::thematic_shiny(font = "auto")
 
+options(shiny.reactlog = TRUE)
+
 ui <- fluidPage(
-  theme = bs_theme(version = 5, bootswatch = "cerulean"),
+  theme = bs_theme(version = 5, bootswatch = "superhero"),
   titlePanel("Nashville Airbnb Crime Map"),
   
   sidebarLayout(
@@ -62,8 +55,8 @@ server <- function(input, output, session) {
     # main leaflet map
     nash %>% 
       leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
-      addProviderTiles("CartoDB.Positron")  %>% 
-      addCircleMarkers(data = total, radius = 2 , weight = 1, opacity = 1, label = ~name,
+      addProviderTiles("Stamen.Toner")  %>% 
+      addCircles(data = total, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
                        popup = paste("<h3>Airbnb</h3>", total$popup3, "<br>", "Name:", 
                                      total$popup2,"<br>" ,total$popup),
                        color= ~pal(room_type), group = "name", layerId = ~id) %>%
@@ -82,7 +75,7 @@ server <- function(input, output, session) {
                                      "<br>Date:", date_filter()$Incident_Occurred) %>% 
                          lapply(htmltools::HTML), 
                        clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier=1.5),
-                       popup = ~as.character(Offense_Description), layerId = as.character(date_filter()$uid)) %>% 
+                       popup = ~as.character(Offense_Description), layerId = as.character(date_filter()$id)) %>% 
       addMeasure(
         position = "topleft",
         primaryLengthUnit = "meters",
@@ -95,11 +88,26 @@ server <- function(input, output, session) {
       addResetMapButton()
   })
   # observer for airbnb property click
-  observeEvent(input$mymap_marker_click,{
-    data_of_click$clickedMarker <- input$mymap_marker_click
+  observeEvent(input$mymap_shape_click,{
+    data_of_click$clickedMarker <- input$mymap_shape_click
   })
   # plot for crimes within a quarter mile of airbnb
   output$donut <- renderPlotly({
+    if(is.null(input$mymap_shape_click))
+      crimes_sf %>%
+      group_by(offense) %>%
+      summarize(count = n()) %>%
+      plot_ly(labels = ~offense, 
+              values= ~count, 
+              marker = list(colors = virid,
+                            line = list(color = '#FFFFFF', 
+                                        width = 1))) %>%
+      add_pie(hole = 0.6) %>%
+      layout(paper_bgcolor='#8C9DA6',
+             title = "All Crimes In Nashville",  showlegend = F,
+             xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+             yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
+    else
     crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], 6] %>%
       group_by(offense) %>%
       summarize(count = n()) %>%
@@ -109,7 +117,8 @@ server <- function(input, output, session) {
                             line = list(color = '#FFFFFF', 
                                         width = 1))) %>%
       add_pie(hole = 0.6) %>%
-      layout(title = paste(nrow(crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], 6]),
+      layout(paper_bgcolor='#8C9DA6',
+        title = paste(nrow(crimes_sf[quarter_mile[[data_of_click$clickedMarker$id]], 6]),
                            "crimes within a quarter mile"),  showlegend = F,
              xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
              yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
@@ -134,18 +143,23 @@ server <- function(input, output, session) {
   })
   
   # datatable output and formatting
-  output$table1 <-  DT::renderDataTable({
-    DT::datatable(date_filter(), 
-                  selection = "single", 
-                  options = list(stateSave = TRUE, 
+  output$table1 <- DT::renderDataTable({
+    DT::datatable(
+       if(is.null(input$mymap_shape_click))
+        date_filter() 
+       else
+        #crime_filter(),
+        date_filter()[quarter_mile[[data_of_click$clickedMarker$id]], ], 
+                  selection = "single",
+                  options = list(stateSave = TRUE,
                                  pageLength = 5,
-                                 lengthMenu = c(2, 12, 18))) %>%
-                  formatStyle(0, target= 'row', 
-                              fontWeight ='bold', 
+                                 lengthMenu = c(5, 10, 20),
+                                 scrollX = TRUE,
+                                 rownames=TRUE)) %>%
+                  formatStyle(0, target= 'row', #fontWeight ='bold',
                               lineHeight='80%'
-                             ) #%>% 
-      #filter(Offense_Description %in% input$crime_selector) %>%  
-      #crimes %>% filter(Incident_Occurred >= input$crimedates[1] & Incident_Occurred <= input$crimedates[2])
+                             ) 
+      
   })
   
   prev_row <- reactiveVal()
@@ -156,15 +170,22 @@ server <- function(input, output, session) {
                                    iconColor = 'white')
   #observers for clicking/highlighting between map and datatable
   observeEvent(input$table1_rows_selected, {
-    row_selected = date_filter()[input$table1_rows_selected, ]
+    if(is.null(input$mymap_shape_click))
+    {row_selected = date_filter()[input$table1_rows_selected, ]
+    }
+    else
+    {row_selected = date_filter()[quarter_mile[[data_of_click$clickedMarker$id]], ][input$table1_rows_selected, ]
+    }
     proxy <- leafletProxy('mymap')
     proxy %>%
       addAwesomeMarkers(popup = as.character(row_selected$Offense_Description),
                         layerId = as.character(row_selected$uid),
                         lng = row_selected$Longitude,
                         lat = row_selected$Latitude,
-                        icon = highlight_icon) #%>%
-      #flyTo(lng = date_filter()$Longitude, lat = date_filter()$Latitude, zoom = 12) 
+                        icon = highlight_icon) %>%
+      flyTo(lng = row_selected$Longitude, lat = row_selected$Latitude, zoom = 12) 
+    
+  
 
     # Reset previously selected marker
     if(!is.null(prev_row())){
@@ -177,13 +198,14 @@ server <- function(input, output, session) {
 
     prev_row(row_selected)
   })
+  
 
-  observeEvent(input$mymap_marker_click, {
-    clickId <- input$mymap_marker_click$uid
-    dataTableProxy("table1") %>%
-      selectRows(which(date_filter()$uid == clickId)) %>%
-      selectPage(which(input$table1_rows_all == clickId) %/% input$table1_state$length + 1)
-  })
+  # observeEvent(input$mymap_marker_click, {
+  #   clickId <- input$mymap_marker_click$id
+  #   dataTableProxy("table1") %>%
+  #     selectRows(which(date_filter()$id == clickId)) %>%
+  #     selectPage(which(input$table1_rows_all == clickId) %/% input$table1_state$length + 1)
+  
   
 }
 
