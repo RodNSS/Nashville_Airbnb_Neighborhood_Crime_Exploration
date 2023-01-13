@@ -389,6 +389,7 @@ glimpse(crimes$Incident_Occurred)
 ```{r}
 # assign unique id to each crime (same as index) for Shiny interactivity
 crimes$uid <- seq.int(nrow(crimes))
+total$uid <- seq.int(nrow(total))
 ```
 
 ```{r}
@@ -440,5 +441,42 @@ crimes_sf[quarter_mile[[150]], 6] %>%
              xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
              yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
 ```
+
+```{r}
+# Additional layers for map
+crime_number <- sapply(quarter_mile, length)
+crime_column <- as.data.frame(crime_number)
+crime_column$uid <- seq.int(nrow(crime_column))
+```
+
+```{r}
+total = merge(total, crime_column, by.x="uid")
+```
+
+```{r}
+total <- total %>% 
+       mutate(group = case_when(crime_number>=1 & crime_number<=10 ~ "Extremely Low Crime",
+                                 crime_number>=11  & crime_number<=50 ~ "Low Crime",
+                                crime_number>=51  & crime_number<=150 ~ "Average Crime",
+                                 crime_number>=151  & crime_number<=400 ~ "High Crime",
+                                crime_number>=401 ~ "Extremely High Crime",
+                                TRUE ~ "No Crime"))
+```
+
+```{r}
+no_crime <- total %>% 
+  filter(group=="No Crime")
+el_crime <- total %>% 
+  filter(group=="Extremely Low Crime")
+l_crime <- total %>% 
+  filter(group=="Low Crime")
+ave_crime <- total %>% 
+  filter(group=="Average Crime")
+high_crime <- total %>% 
+  filter(group=="High Crime")
+eh_crime <- total %>% 
+  filter(group=="Extremely High Crime")
+```
+
 
 
