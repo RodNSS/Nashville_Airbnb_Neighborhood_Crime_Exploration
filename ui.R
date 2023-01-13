@@ -20,11 +20,14 @@ ui <- fluidPage(
                            min = '2022-07-01', 
                            max = '2023-01-04'
                 ),
-          plotlyOutput("donut")
+          plotlyOutput("donut"),
+          actionButton('reset', 'Reset')
         ),
   
   mainPanel(
   leafletOutput('mymap', width = 800, height = 600),
+  
+  fluidRow (class="table"),
   DT::dataTableOutput("table1")
   )
 )
@@ -49,6 +52,13 @@ server <- function(input, output, session) {
   
   })
   
+  # date_filter_copy <- reactiveValues({ 
+  #   crimes %>% 
+  #     #filter(Offense_Description %in% input$crimeselector) %>%  
+  #     filter(Incident_Occurred >= input$crimedates[1] & Incident_Occurred <= input$crimedates[2])
+  #   
+  # })
+  
   output$mymap <- renderLeaflet({
     
     crimes$id <- seq.int(nrow(crimes))
@@ -56,17 +66,61 @@ server <- function(input, output, session) {
     nash %>% 
       leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
       addProviderTiles("Stamen.Toner")  %>% 
-      addCircles(data = total, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
-                       popup = paste("<h3>Airbnb</h3>", total$popup3, "<br>", "Name:", 
-                                     total$popup2,"<br>" ,total$popup),
-                       color= ~pal(room_type), group = "name", layerId = ~id) %>%
+      addPolygons(data=nash, color ="grey", opacity=1, fillOpacity = 0) %>%
+      addCircles(data = no_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
+                 popup = paste("<h3>Airbnb</h3>", no_crime$popup3, "<br>", "Name:",
+                               no_crime$popup2,"<br>", no_crime$popup),
+                 color= "#959c9e", group = "No Crime", layerId = ~uid) %>%
+      addCircles(data = el_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
+                 popup = paste("<h3>Airbnb</h3>", el_crime$popup3, "<br>", "Name:", 
+                               el_crime$popup2,"<br>" ,el_crime$popup),
+                 color= "#309143", group = "Extremely Low Crime", layerId = ~uid) %>%
+      addCircles(data = l_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
+                 popup = paste("<h3>Airbnb</h3>", l_crime$popup3, "<br>", "Name:",
+                               l_crime$popup2,"<br>" ,l_crime$popup),
+                 color= '#8ace7e', group = "Low Crime", layerId = ~uid) %>%
+      addCircles(data = ave_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
+                 popup = paste("<h3>Airbnb</h3>", ave_crime$popup3, "<br>", "Name:",
+                               ave_crime$popup2,"<br>" ,ave_crime$popup),
+                 color= "#ffda66", group = "Average Crime", layerId = ~uid) %>%
+      addCircles(data = high_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
+                 popup = paste("<h3>Airbnb</h3>", high_crime$popup3, "<br>", "Name:",
+                               high_crime$popup2,"<br>" ,high_crime$popup),
+                 color= "#ff684c", group = "High Crime", layerId = ~uid) %>%
+      addCircles(data = eh_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, label = ~name,
+                 popup = paste("<h3>Airbnb</h3>", eh_crime$popup3, "<br>", "Name:",
+                               eh_crime$popup2,"<br>" ,eh_crime$popup),
+                 color= "#b60a1c", group = "Extremely High Crime", layerId = ~uid) %>%
+      addLegend(position ="topright", colors = c("#959c9e","#309143",'#8ace7e',"#ffda66","#ff684c","#b60a1c"), 
+                labels = c("No Crime",
+                           "Extremely Low Crime",
+                           "Low Crime",
+                           "Average Crime",
+                           "High Crime",
+                           "Extremely High Crime" ),
+                title = "Crime Within a Quarter Mile",
+                opacity=1) %>%
+      addLayersControl(overlayGroups =c("No Crime", 
+                                        "Extremely Low Crime", 
+                                        "Low Crime", "Average Crime", 
+                                        "High Crime", 
+                                        "Extremely High Crime",
+                                        "Crime Data"),
+                       options = layersControlOptions(collapsed = TRUE)) %>% 
+      hideGroup("Crime Data") %>% 
       addSearchFeatures(
-        targetGroups ="name", 
+        targetGroups =c("No Crime", 
+                        "Extremely Low Crime",
+                        "Low Crime",
+                        "Average Crime",
+                        "High Crime",
+                        "Extremely High Crime"), 
         options = searchFeaturesOptions(zoom =14,
                                         openPopup = TRUE, 
                                         firstTipSubmit = TRUE,
                                         autoCollapse = FALSE, 
-                                        hideMarkerOnCollapse = TRUE)) %>%
+                                        hideMarkerOnCollapse = TRUE,
+                                        textPlaceholder = "Search For An Airbnb Property")) %>%
       addCircleMarkers(data = date_filter(), 
                        radius = 3, 
                        weight=3, 
@@ -75,16 +129,18 @@ server <- function(input, output, session) {
                                      "<br>Date:", date_filter()$Incident_Occurred) %>% 
                          lapply(htmltools::HTML), 
                        clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier=1.5),
-                       popup = ~as.character(Offense_Description), layerId = as.character(date_filter()$id)) %>% 
-      addMeasure(
-        position = "topleft",
-        primaryLengthUnit = "meters",
-        primaryAreaUnit = "sqmeters",
-        activeColor = "#0bd3d3",
-        completedColor = "#f890e7"
-      ) %>% 
-      addLegend(position ="topright", pal = pal, values = total$room_type) %>%
+                       popup = ~as.character(Offense_Description),
+                       group = "Crime Data",
+                       layerId = as.character(date_filter()$id)) %>% 
+      # addMeasure(
+      #   position = "topleft",
+      #   primaryLengthUnit = "meters",
+      #   primaryAreaUnit = "sqmeters",
+      #   activeColor = "#0bd3d3",
+      #   completedColor = "#f890e7"
+      # ) %>% 
       setView(lat = 36.1627, lng = -86.7816, zoom = 11) %>%
+      #addMiniMap(tiles="CartoDB.DarkMatter") %>% 
       addResetMapButton()
   })
   # observer for airbnb property click
@@ -129,17 +185,16 @@ server <- function(input, output, session) {
   # observer for drawn circle on map with quarter mile radius from center
   observeEvent(input$mymap_click,{
     click <- input$mymap_click
-    f_map <- filtered()
-    map_leaf %>% clearGroup("new_point") %>% 
-      addCircles(click$lng, 
+    map_leaf %>% clearGroup("new_point") %>%
+      addCircles(click$lng,
                  click$lat, weight = 1,
-                 radius = 402.336, 
-                 color = "black", 
-                 fillColor = "red", 
-                 fillOpacity = .2, 
+                 radius = 402.336,
+                 color = "black",
+                 fillColor = "red",
+                 fillOpacity = .2,
                  group= "new_point",
                  highlightOptions = (bringToFront = FALSE))
-    
+
   })
   
   # datatable output and formatting
@@ -176,15 +231,23 @@ server <- function(input, output, session) {
     else
     {row_selected = date_filter()[quarter_mile[[data_of_click$clickedMarker$id]], ][input$table1_rows_selected, ]
     }
-    proxy <- leafletProxy('mymap')
-    proxy %>%
+    proxy <- leafletProxy('mymap') 
+      proxy %>% #clearGroup("new_point") %>%
+    #   addCircles(data_of_click$clickedMarker$lng,
+    #              data_of_click$clickedMarker$lat, weight = 1,
+    #              radius = 402.336,
+    #              color = "black",
+    #              fillColor = "red",
+    #              fillOpacity = .2,
+    #              group= "new_point",
+    #              highlightOptions = (bringToFront = FALSE)) %>% 
       addAwesomeMarkers(popup = as.character(row_selected$Offense_Description),
                         layerId = as.character(row_selected$uid),
                         lng = row_selected$Longitude,
                         lat = row_selected$Latitude,
                         icon = highlight_icon) %>%
-      flyTo(lng = row_selected$Longitude, lat = row_selected$Latitude, zoom = 12) 
-    
+      flyTo(lng = row_selected$Longitude, lat = row_selected$Latitude, 
+            if(is.null(input$mymap_shape_click))zoom = 12 else zoom=15) 
   
 
     # Reset previously selected marker
@@ -195,10 +258,10 @@ server <- function(input, output, session) {
                    lng = prev_row()$Longitude,
                    lat = prev_row()$Latitude)
     }
+  
 
     prev_row(row_selected)
   })
-  
 
   # observeEvent(input$mymap_marker_click, {
   #   clickId <- input$mymap_marker_click$id
@@ -206,6 +269,11 @@ server <- function(input, output, session) {
   #     selectRows(which(date_filter()$id == clickId)) %>%
   #     selectPage(which(input$table1_rows_all == clickId) %/% input$table1_state$length + 1)
   
+   observeEvent(input$reset, {
+   proxy1 <- DT::dataTableProxy('table1')
+   DT::replaceData(proxy1, date_filter())
+  
+   })
   
 }
 
