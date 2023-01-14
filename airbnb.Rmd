@@ -4,8 +4,6 @@ output: html_document
 date: "2022-11-13"
 ---
 
-
-
 ```{r}
 library(dplyr, warn.conflicts = FALSE)
 library(tidygeocoder)
@@ -20,7 +18,11 @@ library(ggplot2)
 library(DT)
 library(glue)
 library(plotly)
-library(viridisLite)
+library(viridis)
+library(mapproj)
+library(pals)
+library(colourvalues)
+library(paletteer)
 ```
 ```{r}
 # import Nashville airbnb list from insideairbnb.com
@@ -424,8 +426,13 @@ max(lengths(quarter_mile))
 ```
 
 ```{r}
-virid <- brewer.pal(n = 11, name = "Spectral")
+#virid <- brewer.pal(n = 11, name = "Spectral")
 ```
+
+```{r}
+virid <- paletteer_d("rcartocolor::Antique", n = 12)
+```
+
 
 ```{r}
 crimes_sf[quarter_mile[[150]], 6] %>%
@@ -477,6 +484,7 @@ high_crime <- total %>%
 eh_crime <- total %>% 
   filter(group=="Extremely High Crime")
 ```
+
 
 
 
