@@ -159,7 +159,7 @@ server <- function(input, output, session) {
   })
   # plot for crimes within a quarter mile of airbnb
   output$donut <- renderPlotly({
-    if(is.null(input$mymap_shape_click) #| !is.null(input$mymap_click)
+    if(is.null(input$mymap_shape_click) | is.null(data_of_click$clickedMarker)
        )
       crimes_sf %>%
       group_by(offense) %>%
@@ -213,7 +213,7 @@ server <- function(input, output, session) {
   map_leaf <- leafletProxy("mymap") 
   # observer for drawn circle on map with quarter mile radius from center
    observeEvent(input$mymap_click,{
-    #data_of_click$clickedMarker <- NULL
+    data_of_click$clickedMarker <- NULL
     # click <- input$mymap_click
     # f_map <- filtered()
     # map_leaf %>% clearGroup("new_point") %>%
@@ -225,10 +225,14 @@ server <- function(input, output, session) {
     #              fillOpacity = .2,
     #              group= "new_point",
     #              highlightOptions = (bringToFront = FALSE))
-     
-     proxy1 <- DT::dataTableProxy('table1')
-     DT::replaceData(proxy1, date_filter())
-     data_of_click$clickedMarker <- NULL
+    # DT::datatable(
+    #   
+    #     date_filter())
+     # proxy1 <- DT::dataTableProxy('table1')
+     # DT::replaceData(proxy1, date_filter())
+     #proxy <- leafletProxy('mymap') 
+     map_leaf %>% clearMarkers()
+     #data_of_click$clickedMarker <- NULL
     
 
   })
@@ -236,7 +240,7 @@ server <- function(input, output, session) {
   # datatable output and formatting
   output$table1 <- DT::renderDataTable({
     DT::datatable(
-       if(is.null(input$mymap_shape_click) #| !is.null(input$mymap_click)
+       if(is.null(input$mymap_shape_click) | is.null(data_of_click$clickedMarker)
           )
         date_filter()
        # else if(is.null(input$mymap_click))
@@ -264,7 +268,7 @@ server <- function(input, output, session) {
                                    iconColor = 'white')
   #observers for clicking/highlighting between map and datatable
   observeEvent(input$table1_rows_selected, {
-    if(is.null(input$mymap_shape_click))
+    if(is.null(input$mymap_shape_click) | is.null(data_of_click$clickedMarker))
     {row_selected = date_filter()[input$table1_rows_selected, ]
      } #else if(!is.null(input$reset)){
     #   row_selected = date_filter()[input$table1_rows_selected, ]
@@ -281,7 +285,7 @@ server <- function(input, output, session) {
       row_selected = date_filter()[quarter_mile[[data_of_click$clickedMarker$id]], ][input$table1_rows_selected, ]
     }
     proxy <- leafletProxy('mymap') 
-      proxy %>% #clearGroup("new_point") %>%
+      proxy %>% clearPopups() %>%
     #   addCircles(data_of_click$clickedMarker$lng,
     #              data_of_click$clickedMarker$lat, weight = 1,
     #              radius = 402.336,
@@ -294,7 +298,8 @@ server <- function(input, output, session) {
                         layerId = as.character(row_selected$uid),
                         lng = row_selected$Longitude,
                         lat = row_selected$Latitude,
-                        icon = highlight_icon) %>%
+                        icon = highlight_icon,
+                        group = "markers") %>%
       flyTo(lng = row_selected$Longitude, lat = row_selected$Latitude, 
             if(is.null(input$mymap_shape_click))zoom = 12 else zoom=15)
   
