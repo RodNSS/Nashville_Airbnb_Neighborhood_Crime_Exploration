@@ -4,6 +4,10 @@ output: html_document
 date: "2022-11-13"
 ---
 
+
+
+
+
 ```{r}
 library(dplyr, warn.conflicts = FALSE)
 library(tidygeocoder)
@@ -23,6 +27,8 @@ library(mapproj)
 library(pals)
 library(colourvalues)
 library(paletteer)
+library(NearRepeat)
+library(lubridate)
 ```
 ```{r}
 # import Nashville airbnb list from insideairbnb.com
@@ -106,7 +112,7 @@ total
 
 ```{r}
 total <- total %>% 
-    mutate(popup = paste0('<a target=_blank href =', links, '>', address_found, '</a>'))
+    mutate(popup = paste0('<a target=_blank href =', links, '>Google Street View</a>'))
 ```
 
 ```{r}
@@ -329,6 +335,7 @@ crimes$Offense_Description <- gsub("BURGLARY- MOTOR VEHICLE", "BURGLARY - MOTOR 
 crimes$Offense_Description <- gsub("BURGLARY- AGGRAVATED", "BURGLARY - AGGRAVATED", crimes$Offense_Description)
 ```
 
+
 ```{r}
 #convert crimes to sf object
 crimes_sf <- st_as_sf(crimes, coords =c("Longitude","Latitude"), crs =4326)
@@ -426,11 +433,30 @@ max(lengths(quarter_mile))
 ```
 
 ```{r}
-#virid <- brewer.pal(n = 11, name = "Spectral")
+v1 <- paletteer_d("ggpomological::pomological_base", n = 7)
 ```
 
 ```{r}
-virid <- paletteer_d("rcartocolor::Antique", n = 12)
+v2 <- paletteer_d("rcartocolor::Antique", n = 12)
+```
+```{r}
+v3 <- c("#002b36", "#073642","#586e75","#657b83","#839496","#93a1a1","#eee8d5","#fdf6e3")
+```
+
+```{r}
+bar_pal <- c(v2, v3)
+```
+
+```{r}
+v4 <- paletteer_d("dutchmasters::milkmaid", n = 13)
+```
+
+```{r}
+virid <- c("#376597FF", "#AF6458FF", "#A89985FF", "#6B452BFF", "#3A3E3FFF", "#FFFEEAFF", "#855C75FF", "#D9AF6BFF", "#736F4CFF", "#526A83FF", "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", "#467378FF", "#7C7C7CFF", "#002b36", "#EFE1C6FF", "#839496", "#D9B196FF", "#657b83", "#93a1a1", "#104A8AFF", "#537270FF", "#556246FF", "#2B323FFF", "#928F6BFF", "#CCAF69FF", "#eee8d5", "#C5AC8EFF", "#889F95FF", "#48211AFF", "#00295DFF")
+```
+
+```{r}
+#virid <- paletteer_d("rcartocolor::Antique", n = 12)
 ```
 
 
@@ -484,7 +510,133 @@ high_crime <- total %>%
 eh_crime <- total %>% 
   filter(group=="Extremely High Crime")
 ```
+```{r}
+mrg <- list(l = 50, r = 50,
+          b = 50, t = 50)
+```
+
+
+```{r}
+crime_plot <- crimes_sf %>%
+      group_by(offense) %>%
+      summarize(count = n()) %>%
+      plot_ly(labels = ~offense,
+              textposition = "inside",
+              values= ~count, 
+              marker = list(colors = virid,
+                            line = list(color = '#FFFFFF', 
+                                        width = 1))) %>%
+      add_pie(hole = 0.4) %>%
+      layout(colorway = c("#376597FF", "#AF6458FF", "#A89985FF", "#6B452BFF", "#3A3E3FFF", "#FFFEEAFF", "#855C75FF", "#D9AF6BFF", "#736F4CFF", "#526A83FF", "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", "#467378FF", "#7C7C7CFF", "#002b36", "#EFE1C6FF", "#839496", "#D9B196FF", "#657b83", "#93a1a1", "#104A8AFF", "#537270FF", "#556246FF", "#2B323FFF", "#928F6BFF", "#CCAF69FF", "#eee8d5", "#C5AC8EFF", "#889F95FF", "#48211AFF", "#00295DFF"), paper_bgcolor='#8C9DA6',
+             title = "All Crimes In Nashville",
+             margin = mrg,
+             showlegend = F,
+             xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+             yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
+crime_plot
+```
+
+```{r}
+crime_category
+```
+
+
+```{r}
+mv_burglary <- subset(crimes_sf,offense=="BURGLARY - MOTOR VEHICLE")
+```
+
+
+```{r}
+burglary_matrix <- matrix(unlist(mv_burglary$geometry), ncol = 2, byrow = T)
+burglary_matrix <- as.data.frame(burglary_matrix)
+burglary_matrix$time <- as.Date(mv_burglary$Incident_Occurred, "%m/%d/%y %H:%M")
+burglary_matrix <- rename(burglary_matrix, x = V1, y = V2)
+```
+
+
+```{r}
+# nr_results <- NearRepeat(x = burglary_matrix$x,
+#                          y = burglary_matrix$y,
+#                          time = burglary_matrix$time,
+#                          sds = c(0, 0.1, 100, 200, 400),
+#                          tds = c(0, 7, 14, 21),
+#                          nrep = 99)
+```
 
 
 
+```{r}
+#nr_results$observed
+```
+```{r}
+#plot(nr_results)
+```
+```{r}
+mv_burglary$Incident_Occurred <- as.Date(mv_burglary$Incident_Occurred, "%m/%d/%y %H:%M")
+```
+
+
+```{r}
+mv_burglary
+```
+```{r}
+# CrimeIcons <- iconList(
+#   "BURGLARY - AGGRAVATED" = makeIcon(iconUrl = 'burglary.png', iconWidth = 35, iconHeight = 35),
+#   "ROBBERY"= makeIcon(iconUrl = 'robbery.png', iconWidth = 35, iconHeight = 35))
+```
+
+```{r}
+names(crimes)[7] = "Location_Description"
+```
+
+
+```{r}
+locations <- sort(table(crimes$Location_Description), decreasing = TRUE)
+locations <- data.frame(locations)
+colnames(locations) <- c("Category", "Frequency")
+locations$Percentage <- locations$Frequency / sum(locations$Frequency)
+#datatable(df_category, options = list(scrollX='400px'))
+locations
+```
+```{r}
+crimes[quarter_mile[[150]], 7] %>%
+      group_by(Location_Description) %>%
+      summarize(count = n()) %>%
+      plot_ly(labels = ~Location_Description, 
+              values= ~count, 
+              marker = list(colors = virid,
+                            line = list(color = '#FFFFFF', 
+                                        width = 1))) %>%
+      add_pie(hole = 0.6) %>%
+      layout(paper_bgcolor='#8C9DA6', title = "location",  showlegend = F,
+             xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+             yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
+```
+```{r}
+barplot <- crimes[quarter_mile[[150]], 7] %>%
+      group_by(Location_Description) %>%
+      summarize(count = n()) %>%
+      plot_ly(x = ~Location_Description,
+              y = ~count,
+              name = "Location",
+              type = "bar",
+              #orientation = 'h',
+              marker = list(color = v2,
+                            line = list(color = '#8C9DA6', 
+                                         width = 1))) %>% 
+      layout(paper_bgcolor='#8C9DA6', plot_bgcolor ='#8C9DA6',
+             xaxis = list(title = "Location Description", showgrid = T, zeroline = F, showticklabels = T),
+              yaxis  = list(title = "Count", showgrid = T, zeroline = F, showticklabels = T))
+barplot
+```
+
+```{r}
+c("#48211AFF", "#AF6458FF", "#EFE1C6FF", "#A89985FF", "#6B452BFF", "#3A3E3FFF", "#2B323FFF", "#855C75FF", "#D9AF6BFF", "#736F4CFF", "#526A83FF", "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", "#467378FF", "#7C7C7CFF", "#002b36", "#F8EED1FF", "#073642", "#586e75", "#fdf6e3", "#657b83", "#839496", "#FFFEEAFF", "#93a1a1", "#eee8d5", "#376597FF", "#537270FF", "#556246FF", "#928F6BFF", "#CCAF69FF", "#ECE5D3FF", "#104A8AFF", "#C5AC8EFF",
+"#889F95FF", "#7C4728FF", "#00295DFF", "#D9B196FF")
+```
+```{r}
+colnames(crimes)[colnames(crimes)      # Rename two variable names
+                   %in% c("Incident Number", "Incident Status Description", "Incident_Occurred", "Incident_Location", "Location_Description", "Offense_Description", "Weapon Description")] <- c("Incident", "Incident Status", "Date", "Street", "Location", "Offense", "Weapon")
+crimes
+```
 
