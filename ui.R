@@ -7,16 +7,16 @@ thematic::thematic_shiny(font = "auto")
 options(shiny.reactlog = TRUE)
 
 pal3 <- colorNumeric(palette = as.character(paletteer_c("grDevices::RdYlBu", n=1600)), 
-                      domain  = c(min(total$crime_number), max(total$crime_number)), reverse=T)
+                     domain  = c(min(total$crime_number), max(total$crime_number)), reverse=T)
 
 ui <- fluidPage(#theme = shinytheme("superhero"),
   theme = bs_theme(version = 5, bootswatch = "superhero"),
   titlePanel(tagList(span("Nashville Airbnb Crime Map",
                           span(actionButton('reset', 'Reset'),
                                style = "position:absolute;right:1em;")
-                          )
-                     )
-             ),
+  )
+  )
+  ),
   
   sidebarLayout(
     sidebarPanel(
@@ -53,6 +53,21 @@ server <- function(input, output, session) {
     total
   })
   
+  # Figure out how to incorporate this code for date subsetting
+  
+  # date_filter <- reactive({ 
+  #   if(is.null(click$clickedMarker)
+  #   ){
+  #     crime_sub <- crimes
+  #   }
+  #   else {
+  #     crime_sub <- crimes[quarter_mile[[click$clickedMarker$id]], ]
+  #   } 
+  #   crime_sub %>% 
+  #     filter(Date >= input$crimedates[1] & Date <= input$crimedates[2])
+  #   
+  # })
+  
   date_filter <- reactive({ 
     crimes %>% 
       filter(Date >= input$crimedates[1] & Date <= input$crimedates[2])
@@ -79,8 +94,8 @@ server <- function(input, output, session) {
                                total$popup2,"<br>", total$popup),
                  color= ~pal3(crime_number), group = "Airbnb", layerId = ~uid, highlightOptions = (bringToFront = TRUE)) %>%
       addLegend("bottomright", pal = pal3, values = ~crime_number,
-              title = "Crimes",
-              opacity = 1) %>% 
+                title = "Crimes",
+                opacity = 1) %>% 
       addLayersControl(overlayGroups =c("Airbnb",
                                         "Crime Data"), 
                        baseGroups = c("Dark Version", 
@@ -100,8 +115,8 @@ server <- function(input, output, session) {
                        weight=3,
                        color="red",
                        label = ~paste("<b>",Offense,"</b>", "<br>Weapon:", Weapon,
-                                     "<br>Date:", Date, "<br>Incident #:", Incident, "<br>Street:",
-                                     Street, "<br>Location Type:", Location) %>% 
+                                      "<br>Date:", Date, "<br>Incident #:", Incident, "<br>Street:",
+                                      Street, "<br>Location Type:", Location) %>% 
                          lapply(htmltools::HTML), 
                        clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier=1.5),
                        popup = ~paste("<b>",Offense,"</b>", "<br>Weapon:", Weapon,
@@ -134,13 +149,13 @@ server <- function(input, output, session) {
                                         width = 1))) %>%
       add_pie(hole = 0.4) %>%
       layout(colorway = c("#376597FF", "#AF6458FF", "#A89985FF", "#6B452BFF", "#3A3E3FFF", 
-                          "#FFFEEAFF", "#855C75FF", "#D9AF6BFF", "#736F4CFF", "#526A83FF", 
-                          "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", 
-                          "#467378FF", "#7C7C7CFF", "#002b36", "#EFE1C6FF", "#839496", 
-                          "#D9B196FF", "#657b83", "#93a1a1", "#104A8AFF", "#537270FF", 
-                          "#556246FF", "#2B323FFF", "#928F6BFF", "#CCAF69FF", "#eee8d5", 
-                          "#C5AC8EFF", "#889F95FF", "#48211AFF", "#00295DFF"),
-                          paper_bgcolor='#8C9DA6',
+                                     "#FFFEEAFF", "#855C75FF", "#D9AF6BFF", "#736F4CFF", "#526A83FF", 
+                                     "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", 
+                                     "#467378FF", "#7C7C7CFF", "#002b36", "#EFE1C6FF", "#839496", 
+                                     "#D9B196FF", "#657b83", "#93a1a1", "#104A8AFF", "#537270FF", 
+                                     "#556246FF", "#2B323FFF", "#928F6BFF", "#CCAF69FF", "#eee8d5", 
+                                     "#C5AC8EFF", "#889F95FF", "#48211AFF", "#00295DFF"),
+                                     paper_bgcolor='#8C9DA6',
              title = paste(nrow(crimes_sf[quarter_mile[[click$clickedMarker$id]], 6]),
                            "crimes within a quarter mile"), margin = mrg, showlegend = F,
              xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
@@ -171,7 +186,7 @@ server <- function(input, output, session) {
   map_leaf <- leafletProxy("mymap") 
   # observer for clearing markers by clicking map
   observeEvent(input$mymap_click,{
-     map_leaf %>% clearMarkers() 
+    map_leaf %>% clearMarkers() 
     
   })
   
@@ -204,7 +219,7 @@ server <- function(input, output, session) {
   observeEvent(input$table1_rows_selected, {
     if(is.null(click$clickedMarker)
     ) 
-      {row_selected = date_filter()[input$table1_rows_selected, ]
+    {row_selected = date_filter()[input$table1_rows_selected, ]
     }  
     else{
       row_selected = date_filter()[quarter_mile[[click$clickedMarker$id]], ][input$table1_rows_selected, ]
