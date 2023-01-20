@@ -9,13 +9,13 @@ options(shiny.reactlog = TRUE)
 pal3 <- colorNumeric(palette = as.character(paletteer_c("grDevices::RdYlBu", n=1600)), 
                      domain  = c(min(total$crime_number), max(total$crime_number)), reverse=T)
 
-ui <- fluidPage(#theme = shinytheme("superhero"),
+ui <- fluidPage(
   theme = bs_theme(version = 5, bootswatch = "superhero"),
   titlePanel(tagList(span("Nashville Airbnb Crime Map",
                           span(actionButton('reset', 'Reset'),
                                style = "position:absolute;right:1em;")
-  )
-  )
+      )
+    )
   ),
   
   sidebarLayout(
@@ -33,18 +33,16 @@ ui <- fluidPage(#theme = shinytheme("superhero"),
     ),
     
     mainPanel(
-      leafletOutput('mymap', width = 1100, height = 500),
+      leafletOutput('mymap', width = 1245, height = 500),
       
       fluidRow (class="table"),
       DT::dataTableOutput("table1")
     )
   )
 )
+
 server <- function(input, output, session) {
   #bs_themer()
-  points <- eventReactive(input$recalc, {
-    cbind(rnorm(40) * 2 + 13, rnorm(40) + 48)
-  }, ignoreNULL = FALSE)
   
   click <- reactiveValues(clickedMarker=NULL)
   
@@ -53,25 +51,25 @@ server <- function(input, output, session) {
     total
   })
   
-  # Figure out how to incorporate this code for date subsetting
-  
-  # date_filter <- reactive({ 
-  #   if(is.null(click$clickedMarker)
-  #   ){
-  #     crime_sub <- crimes
-  #   }
-  #   else {
-  #     crime_sub <- crimes[quarter_mile[[click$clickedMarker$id]], ]
-  #   } 
-  #   crime_sub %>% 
-  #     filter(Date >= input$crimedates[1] & Date <= input$crimedates[2])
-  #   
-  # })
-  
   date_filter <- reactive({ 
     crimes %>% 
       filter(Date >= input$crimedates[1] & Date <= input$crimedates[2])
     
+  })
+  
+  table_data <- reactive({
+    if(is.null(click$clickedMarker)){
+      
+      table_data <- date_filter() 
+    }
+    else{
+      marker_uid <- crimes[quarter_mile[[click$clickedMarker$id]], ] %>% 
+        pull(uid)
+      table_data <- date_filter() %>% 
+        filter(uid %in% marker_uid)
+      
+    }
+    return(table_data)
   })
   
   output$mymap <- renderLeaflet({
@@ -89,19 +87,26 @@ server <- function(input, output, session) {
       ) %>%
       #addPolygons(data=nash, color ="grey", opacity=1, fillOpacity = 0) %>%
       addCircles(data = total, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, 
-                 label = paste(total$name, "<br>Crimes:", total$crime_number) %>% lapply(htmltools::HTML),
+                 label = paste(total$name, "<br>Total Crimes Within A Quarter Mile:", total$crime_number) %>% 
+                   lapply(htmltools::HTML),
                  popup = paste("<h3>Airbnb</h3>", total$popup3, "<br>", "Name:",
                                total$popup2,"<br>", total$popup),
-                 color= ~pal3(crime_number), group = "Airbnb", layerId = ~uid, highlightOptions = (bringToFront = TRUE)) %>%
-      addLegend("bottomright", pal = pal3, values = ~crime_number,
+                 color= ~pal_fun2(crime_number), group = "Airbnb", layerId = ~uid, highlightOptions = (bringToFront = TRUE)) %>%
+      addCircles(data = no_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, 
+                 label = paste(no_crime$name, "<br>Crimes:", no_crime$crime_number) %>% lapply(htmltools::HTML),
+                 popup = paste("<h3>Airbnb</h3>", no_crime$popup3, "<br>", "Name:",
+                               no_crime$popup2,"<br>", no_crime$popup),
+                 color= "#009E60", group = "No Crime", layerId = ~uid) %>%
+      addLegend("bottomright", pal= pal_fun2, values = ~crime_number,
                 title = "Crimes",
                 opacity = 1) %>% 
       addLayersControl(overlayGroups =c("Airbnb",
-                                        "Crime Data"), 
+                                        "Crime Layer",
+                                        "No Crime"), 
                        baseGroups = c("Dark Version", 
                                       "Light Version"),
                        options = layersControlOptions(collapsed = TRUE)) %>% 
-      hideGroup("Crime Data") %>% 
+      hideGroup(c("Crime Layer", "No Crime")) %>%
       addSearchFeatures(
         targetGroups = "Airbnb", 
         options = searchFeaturesOptions(zoom = 15,
@@ -114,7 +119,7 @@ server <- function(input, output, session) {
                        radius = 3,
                        weight=3,
                        color="red",
-                       label = ~paste("<b>",Offense,"</b>", "<br>Weapon:", Weapon,
+                       label = ~paste("<b>", Offense,"</b>", "<br>Weapon:", Weapon,
                                       "<br>Date:", Date, "<br>Incident #:", Incident, "<br>Street:",
                                       Street, "<br>Location Type:", Location) %>% 
                          lapply(htmltools::HTML), 
@@ -122,11 +127,11 @@ server <- function(input, output, session) {
                        popup = ~paste("<b>",Offense,"</b>", "<br>Weapon:", Weapon,
                                       "<br>Date:", Date, "<br>Incident #:", Incident, "<br>Street:",
                                       Street, "<br>Location Type:", Location),
-                       group = "Crime Data",
+                       group = "Crime Layer",
                        layerId = as.character(date_filter()$id)) %>% 
       setView(lat = 36.1627, lng = -86.7816, zoom = 11) %>%
       #addMiniMap(tiles="CartoDB.DarkMatter") %>% 
-      addResetMapButton()
+      addResetMapButton() 
   })
   # observer for airbnb property click
   observeEvent(input$mymap_shape_click,{
@@ -138,16 +143,16 @@ server <- function(input, output, session) {
     )
       crime_plot
     else
-      crimes_sf[quarter_mile[[click$clickedMarker$id]], 6] %>%
-      group_by(offense) %>%
+      table_data() %>% 
+      group_by(Offense) %>%
       summarize(count = n()) %>%
-      plot_ly(labels = ~offense,
+      plot_ly(labels = ~Offense,
               textposition = "inside",
               values= ~count, 
               marker = list(colors = virid,
                             line = list(color = '#FFFFFF', 
                                         width = 1))) %>%
-      add_pie(hole = 0.4) %>%
+      add_pie(hole = 0.5) %>%
       layout(colorway = c("#376597FF", "#AF6458FF", "#A89985FF", "#6B452BFF", "#3A3E3FFF", 
                                      "#FFFEEAFF", "#855C75FF", "#D9AF6BFF", "#736F4CFF", "#526A83FF", 
                                      "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", 
@@ -156,7 +161,7 @@ server <- function(input, output, session) {
                                      "#556246FF", "#2B323FFF", "#928F6BFF", "#CCAF69FF", "#eee8d5", 
                                      "#C5AC8EFF", "#889F95FF", "#48211AFF", "#00295DFF"),
                                      paper_bgcolor='#8C9DA6',
-             title = paste(nrow(crimes_sf[quarter_mile[[click$clickedMarker$id]], 6]),
+             title = paste(nrow(table_data()),
                            "crimes within a quarter mile"), margin = mrg, showlegend = F,
              xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
              yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
@@ -167,7 +172,7 @@ server <- function(input, output, session) {
     if(is.null(click$clickedMarker))
       barplot
     else
-      crimes[quarter_mile[[click$clickedMarker$id]], 7] %>%
+      table_data() %>%
       group_by(Location) %>%
       summarize(count = n()) %>%
       plot_ly(x = ~Location,
@@ -193,11 +198,7 @@ server <- function(input, output, session) {
   # datatable output and formatting
   output$table1 <- DT::renderDataTable({
     DT::datatable(
-      if(is.null(click$clickedMarker)
-      )
-        date_filter()
-      else
-        date_filter()[quarter_mile[[click$clickedMarker$id]], ], 
+      table_data(), 
       selection = "single",
       options = list(stateSave = TRUE,
                      pageLength = 5,
@@ -217,13 +218,8 @@ server <- function(input, output, session) {
                                    iconColor = 'white')
   #observers for clicking/highlighting between map and datatable
   observeEvent(input$table1_rows_selected, {
-    if(is.null(click$clickedMarker)
-    ) 
-    {row_selected = date_filter()[input$table1_rows_selected, ]
-    }  
-    else{
-      row_selected = date_filter()[quarter_mile[[click$clickedMarker$id]], ][input$table1_rows_selected, ]
-    }
+    row_selected = table_data()[input$table1_rows_selected, ]
+    
     proxy <- leafletProxy('mymap') 
     proxy %>% clearMarkers() %>%
       addAwesomeMarkers(popup = paste("<b>",row_selected$Offense,"</b>", "<br>Weapon:", row_selected$Weapon,
