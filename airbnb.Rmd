@@ -639,4 +639,113 @@ colnames(crimes)[colnames(crimes)      # Rename two variable names
                    %in% c("Incident Number", "Incident Status Description", "Incident_Occurred", "Incident_Location", "Location_Description", "Offense_Description", "Weapon Description")] <- c("Incident", "Incident Status", "Date", "Street", "Location", "Offense", "Weapon")
 crimes
 ```
+```{r}
+palettes_c_names
+```
+
+
+```{r}
+paletteer_c("scico::roma", n = 16)
+```
+
+```{r}
+scan(text="#7E1900FF #924410FF #A4661EFF #B48A2CFF #C5AD40FF #D9D26AFF #E5E598FF #DFECBBFF #BFEBD2FF #8CDED9FF #60C3D4FF #4CA3C9FF #3F85BBFF #3368B0FF #274DA4FF #1A3399FF", what="")
+```
+
+```{r}
+pal_fun <- colorQuantile(c("#001889FF", "#3A0889FF", "#5F008CFF", "#7A008DFF", "#91008DFF", "#A50B8AFF", "#B62485FF", "#C5397CFF", "#D24E71FF", "#DC6261FF", "#E4774DFF", "#EA8C2EFF", "#EDA200FF", "#ECB800FF", "#E9CF00FF", "#E2E600FF", "#DAFF47FF"), total$crime_number, n = 16, reverse=T)
+```
+
+
+```{r}
+total_with_crimes <- filter(total, group!="No Crime")
+total_with_crimes
+```
+
+
+```{r}
+sum(total$crime_number>=300 & total$crime_number<= 400)
+```
+
+```{r}
+crime_bins <- c(0, 1, 5, 15, 25, 50, 75, 100, 150, 200, 300, 400, 700, 1400, 1500, 1600, 1700)
+#risk.pal <- colorBin("plasma", bins = crime.bins, na.color = "#aaff56")
+```
+
+```{r}
+#pal_fun2 <- colorBin(c("#009E60", "#2D3184FF", "#1E4F8EFF", "#09679AFF", "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", "#B9E9C6FF", "#DAF0CEFF", "#E6F2D4FF", "#EFF2DBFF", "#F3F1E4FF"), bins = crime_bins) 
+```
+
+```{r}
+#pal_fun2 <- colorBin(c("#009E60", "#2D3184FF", "#1E4F8EFF", "#09679AFF", "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", "#B9E9C6FF", "#F3DC7FFF", "#F6CF75FF", "#EAA162FF", "#D57B57FF"), bins = crime_bins)
+```
+
+```{r}
+#pal_fun2 <- colorBin(c("#7E1900FF", "#924410FF", "#A4661EFF", "#B48A2CFF", "#C5AD40FF", "#D9D26AFF", "#E5E598FF", "#DFECBBFF", "#BFEBD2FF", "#8CDED9FF", "#60C3D4FF", "#4CA3C9FF", "#3F85BBFF", "#3368B0FF", "#274DA4FF", "#1A3399FF", "#009E60"), bins = crime_bins, reverse=T)
+```
+
+```{r}
+pal_fun2 <- colorBin(c("#3A0889FF", "#2D3184FF", "#1E4F8EFF", "#09679AFF", "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", "#E5E598FF", "#C5AD40FF", "#A4661EFF", "#7E1900FF"), bins = crime_bins)
+```
+
+```{r}
+nash %>% 
+      leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
+      addProviderTiles("CartoDB.DarkMatter", group = "Dark Version") %>% 
+      addProviderTiles("Stamen.Toner", group = "Light Version")  %>% 
+      addLayersControl(
+        baseGroups = c(
+          "ST", "HM"
+        ),
+        position = "topleft"
+      ) %>%
+      #addPolygons(data=nash, color ="grey", opacity=1, fillOpacity = 0) %>%
+      addCircles(data = total, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, 
+                 label = paste(total$name, "<br>Total Crimes Within A Quarter Mile:", total$crime_number) %>% 
+                   lapply(htmltools::HTML),
+                 popup = paste("<h3>Airbnb</h3>", total$popup3, "<br>", "Name:",
+                               total$popup2,"<br>", total$popup),
+                 color= ~pal_fun2(crime_number), group = "Airbnb", layerId = ~uid, 
+                 highlightOptions = (bringToFront = TRUE)) %>%
+      addCircles(data = no_crime, radius = 3, weight = 2, opacity = 1, fillOpacity = 1, 
+                 label = paste(no_crime$name, "<br>Crimes:", no_crime$crime_number) %>% lapply(htmltools::HTML),
+                 popup = paste("<h3>Airbnb</h3>", no_crime$popup3, "<br>", "Name:",
+                               no_crime$popup2,"<br>", no_crime$popup),
+                 color= "#009E60", group = "No Crime", layerId = ~uid) %>%
+      addLegend("bottomright", pal = pal_fun2, values = ~crime_number,
+                title = "Crimes",
+                opacity = 1) %>% 
+      addLayersControl(overlayGroups =c("Airbnb",
+                                        "Crime Data",
+                                        "No Crime"), 
+                       baseGroups = c("Dark Version", 
+                                      "Light Version"),
+                       options = layersControlOptions(collapsed = TRUE)) %>% 
+      hideGroup(c("Crime Data", "No Crime")) %>%
+      addSearchFeatures(
+        targetGroups = "Airbnb", 
+        options = searchFeaturesOptions(zoom = 15,
+                                        openPopup = TRUE, 
+                                        firstTipSubmit = TRUE,
+                                        autoCollapse = TRUE, 
+                                        hideMarkerOnCollapse = TRUE,
+                                        textPlaceholder = "Search For An Airbnb Property")) %>%
+      # addCircleMarkers(data = date_filter(),
+      #                  radius = 3,
+      #                  weight=3,
+      #                  color="red",
+      #                  label = ~paste("<b>", Offense,"</b>", "<br>Weapon:", Weapon,
+      #                                 "<br>Date:", Date, "<br>Incident #:", Incident, "<br>Street:",
+      #                                 Street, "<br>Location Type:", Location) %>% 
+      #                    lapply(htmltools::HTML), 
+      #                  clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier=1.5),
+      #                  popup = ~paste("<b>",Offense,"</b>", "<br>Weapon:", Weapon,
+      #                                 "<br>Date:", Date, "<br>Incident #:", Incident, "<br>Street:",
+      #                                 Street, "<br>Location Type:", Location),
+      #                  group = "Crime Data",
+      #                  layerId = as.character(date_filter()$id)) %>% 
+      setView(lat = 36.1627, lng = -86.7816, zoom = 11) %>%
+      #addMiniMap(tiles="CartoDB.DarkMatter") %>% 
+      addResetMapButton()
+```
 
