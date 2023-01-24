@@ -2,15 +2,35 @@ library(shiny)
 library(bslib)
 library(thematic)
 library(shinythemes)
-thematic::thematic_shiny(font = "auto")
+library(sass)
+library(plotly)
+library(dplyr)
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(leaflet.extras)
+library(leaflet.extras2)
+library(RColorBrewer)
+library(htmltools)
+library(ggplot2)
+library(DT)
+library(glue)
+library(plotly)
+library(viridis)
+library(mapproj)
+library(pals)
+library(colourvalues)
+library(paletteer)
+library(lubridate)
+library(shinyWidgets)
+#thematic::thematic_shiny(font = "auto")
 
 options(shiny.reactlog = TRUE)
 
-pal3 <- colorNumeric(palette = as.character(paletteer_c("grDevices::RdYlBu", n=1600)), 
-                     domain  = c(min(total$crime_number), max(total$crime_number)), reverse=T)
+theme <- bslib::bs_theme(version = 5, bootswatch = "superhero")
 
 ui <- fluidPage(
-  theme = bs_theme(version = 5, bootswatch = "superhero"),
+  theme = theme,
   titlePanel(tagList(span("Nashville Airbnb Crime Map",
                           span(actionButton('reset', 'Reset'),
                                style = "position:absolute;right:1em;")
@@ -23,17 +43,25 @@ ui <- fluidPage(
       dateRangeInput("crimedates",
                      label = ("Date Range"),
                      width=380,
-                     start = '2022-07-01', 
-                     end = '2023-01-04',
-                     min = '2022-07-01', 
-                     max = '2023-01-04'
+                     start = '2022-07-10', 
+                     end = '2023-01-20',
+                     min = '2022-07-10', 
+                     max = '2023-01-20'
       ), 
+      pickerInput(
+        inputId = "crime_type",
+        label = "Filter By Crime Type",
+        choices = sort(unique(crimes$Offense)),
+        selected = crimes$Offense,
+        options = list(`actions-box` = TRUE),
+        multiple = TRUE
+      ),
       plotlyOutput("donut"),
       plotlyOutput("bar")
     ),
     
     mainPanel(
-      leafletOutput('mymap', width = 1245, height = 500),
+      leafletOutput('mymap', width = 1100, height = 500),
       
       fluidRow (class="table"),
       DT::dataTableOutput("table1")
@@ -47,13 +75,10 @@ server <- function(input, output, session) {
   click <- reactiveValues(clickedMarker=NULL)
   
   #define reactives 
-  filtered <- reactive({
-    total
-  })
-  
   date_filter <- reactive({ 
     crimes %>% 
-      filter(Date >= input$crimedates[1] & Date <= input$crimedates[2])
+      filter(Date >= input$crimedates[1] & Date <= input$crimedates[2]) %>% 
+      filter(Offense %in% input$crime_type)
     
   })
   
@@ -77,8 +102,8 @@ server <- function(input, output, session) {
     # main leaflet map
     nash %>% 
       leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
-      addProviderTiles("CartoDB.DarkMatter", group = "Dark Version") %>% 
-      addProviderTiles("Stamen.Toner", group = "Light Version")  %>% 
+      addProviderTiles("CartoDB.DarkMatter", group = "Dark Theme") %>% 
+      addProviderTiles("Stamen.Toner", group = "Light Theme")  %>% 
       addLayersControl(
         baseGroups = c(
           "ST", "HM"
@@ -97,16 +122,23 @@ server <- function(input, output, session) {
                  popup = paste("<h3>Airbnb</h3>", no_crime$popup3, "<br>", "Name:",
                                no_crime$popup2,"<br>", no_crime$popup),
                  color= "#009E60", group = "No Crime", layerId = ~uid) %>%
-      addLegend("bottomright", pal= pal_fun2, values = ~crime_number,
+      addLegend("bottomright", colors = c("#3A0889FF", "#2D3184FF", "#1E4F8EFF", "#09679AFF", 
+                                          "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", 
+                                          "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", 
+                                          "#CBEDCAFF", "#E5E598FF", "#C5AD40FF", "#A4661EFF", "#7E1900FF"), 
+                                          labels = c("0", "1-5", "5-10", "11-15", "16-25", "26-50", "51-75", 
+                                                     "76-100", "101-150", "151-200", "201-300", "301-400", 
+                                                     "401-700", "701-1400", "1401-1500", "1501-1600", "1601-1700"), 
+                values = ~crime_number,
                 title = "Crimes",
-                opacity = 1) %>% 
+                opacity = 1) %>%
       addLayersControl(overlayGroups =c("Airbnb",
                                         "Crime Layer",
                                         "No Crime"), 
-                       baseGroups = c("Dark Version", 
-                                      "Light Version"),
+                       baseGroups = c("Dark Theme", 
+                                      "Light Theme"),
                        options = layersControlOptions(collapsed = TRUE)) %>% 
-      hideGroup(c("Crime Layer", "No Crime")) %>%
+      hideGroup("No Crime") %>%
       addSearchFeatures(
         targetGroups = "Airbnb", 
         options = searchFeaturesOptions(zoom = 15,
@@ -184,7 +216,8 @@ server <- function(input, output, session) {
                             line = list(color = '#8C9DA6', 
                                         width = 1))) %>% 
       layout(paper_bgcolor='#8C9DA6', plot_bgcolor ='#8C9DA6',
-             xaxis = list(title = "Location Description", showgrid = T, zeroline = F, showticklabels = T),
+             xaxis = list(title = "Location Description", showgrid = T, zeroline = F, 
+                          showticklabels = T, categoryorder = "total descending"),
              yaxis  = list(title = "Count", showgrid = T, zeroline = F, showticklabels = T))
   })
   
@@ -236,6 +269,12 @@ server <- function(input, output, session) {
   })
   # reset page
   observeEvent(input$reset, {
+    updatePickerInput(
+      session,
+      inputId = "crime_type",
+      choices = sort(unique(crimes$Offense)),
+      selected = crimes$Offense
+    )
     proxy1 <- DT::dataTableProxy('table1')
     DT::replaceData(proxy1, date_filter())
     click$clickedMarker <- NULL
