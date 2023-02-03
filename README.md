@@ -47,9 +47,9 @@ https://data.nashville.gov/Police/Metro-Nashville-Police-Department-Incidents/2u
 - Depending on the Airbnb host’s particular location settings, the coordinates may
 not be exact. If location is set to “specific” there is a higher likelihood the
 coordinates will match the exact property. If the location is set to “general” then
-the coordinates only link to the general area the property is located in within a
-half mile radius. It’s still possible to find the exact property if the listing has an
-exterior photo or permit number but this is not ideal.
+the coordinates only link to the general area the property is located in within 450 feet 
+according to http://insideairbnb.com/data-assumptions. It’s still possible to find the exact 
+property if the listing has an exterior photo or permit number but this is not ideal.
 
 - There are lots of crime incidents which will require proper filtering and viewing
 options in order to not overwhelm the map and make relevant for an Airbnb user.
