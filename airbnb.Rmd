@@ -1,16 +1,7 @@
----
-title: "Untitled"
-output: html_document
-date: "2022-11-13"
----
-
-
-
-
 
 ```{r}
-library(dplyr, warn.conflicts = FALSE)
-library(tidygeocoder)
+library(dplyr)
+#library(tidygeocoder)
 library(tidyverse)
 library(sf)
 library(leaflet)
@@ -27,8 +18,12 @@ library(mapproj)
 library(pals)
 library(colourvalues)
 library(paletteer)
-library(NearRepeat)
 library(lubridate)
+library(bslib)
+library(thematic)
+library(shinythemes)
+library(sass)
+#thematic::thematic_shiny(font = "auto")
 ```
 ```{r}
 # import Nashville airbnb list from insideairbnb.com
@@ -42,7 +37,7 @@ airbnb
   #reverse_geocode(lat = latitude, long = longitude, method = 'arcgis',
                   #address = address_found, full_results = FALSE)
 
-```
+``` 
 
 ```{r}
 #write.csv(addys, "airbnb.csv", row.names=FALSE)
@@ -487,6 +482,7 @@ total = merge(total, crime_column, by.x="uid")
 ```
 
 ```{r}
+# assign each airbnb to groups based on amount of crime
 total <- total %>% 
        mutate(group = case_when(crime_number>=1 & crime_number<=10 ~ "Extremely Low Crime",
                                  crime_number>=11  & crime_number<=50 ~ "Low Crime",
@@ -497,6 +493,7 @@ total <- total %>%
 ```
 
 ```{r}
+# sepearate airbnb groups
 no_crime <- total %>% 
   filter(group=="No Crime")
 el_crime <- total %>% 
@@ -511,12 +508,14 @@ eh_crime <- total %>%
   filter(group=="Extremely High Crime")
 ```
 ```{r}
+# margin for text alignment in plot
 mrg <- list(l = 50, r = 50,
           b = 50, t = 50)
 ```
 
 
 ```{r}
+# initial plot upon app startup
 crime_plot <- crimes_sf %>%
       group_by(offense) %>%
       summarize(count = n()) %>%
@@ -542,6 +541,7 @@ crime_category
 
 
 ```{r}
+# tested for NearRepeat crime correlation. No statistically significant results.
 mv_burglary <- subset(crimes_sf,offense=="BURGLARY - MOTOR VEHICLE")
 ```
 
@@ -579,11 +579,7 @@ mv_burglary$Incident_Occurred <- as.Date(mv_burglary$Incident_Occurred, "%m/%d/%
 ```{r}
 mv_burglary
 ```
-```{r}
-# CrimeIcons <- iconList(
-#   "BURGLARY - AGGRAVATED" = makeIcon(iconUrl = 'burglary.png', iconWidth = 35, iconHeight = 35),
-#   "ROBBERY"= makeIcon(iconUrl = 'robbery.png', iconWidth = 35, iconHeight = 35))
-```
+
 
 ```{r}
 names(crimes)[7] = "Location_Description"
@@ -613,6 +609,7 @@ crimes[quarter_mile[[150]], 7] %>%
              yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
 ```
 ```{r}
+# initial barplot for app startup
 barplot <- crimes[quarter_mile[[150]], 7] %>%
       group_by(Location_Description) %>%
       summarize(count = n()) %>%
@@ -631,6 +628,7 @@ barplot
 ```
 
 ```{r}
+# testing and experimenting with various color palettes using paletteer library
 c("#48211AFF", "#AF6458FF", "#EFE1C6FF", "#A89985FF", "#6B452BFF", "#3A3E3FFF", "#2B323FFF", "#855C75FF", "#D9AF6BFF", "#736F4CFF", "#526A83FF", "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", "#467378FF", "#7C7C7CFF", "#002b36", "#F8EED1FF", "#073642", "#586e75", "#fdf6e3", "#657b83", "#839496", "#FFFEEAFF", "#93a1a1", "#eee8d5", "#376597FF", "#537270FF", "#556246FF", "#928F6BFF", "#CCAF69FF", "#ECE5D3FF", "#104A8AFF", "#C5AC8EFF",
 "#889F95FF", "#7C4728FF", "#00295DFF", "#D9B196FF")
 ```
@@ -649,6 +647,7 @@ paletteer_c("scico::roma", n = 16)
 ```
 
 ```{r}
+# adds "" around hex codes
 scan(text="#7E1900FF #924410FF #A4661EFF #B48A2CFF #C5AD40FF #D9D26AFF #E5E598FF #DFECBBFF #BFEBD2FF #8CDED9FF #60C3D4FF #4CA3C9FF #3F85BBFF #3368B0FF #274DA4FF #1A3399FF", what="")
 ```
 
@@ -668,6 +667,7 @@ sum(total$crime_number>=300 & total$crime_number<= 400)
 ```
 
 ```{r}
+# define number of bins for final plot 
 crime_bins <- c(0, 1, 5, 15, 25, 50, 75, 100, 150, 200, 300, 400, 700, 1400, 1500, 1600, 1700)
 #risk.pal <- colorBin("plasma", bins = crime.bins, na.color = "#aaff56")
 ```
@@ -685,10 +685,16 @@ crime_bins <- c(0, 1, 5, 15, 25, 50, 75, 100, 150, 200, 300, 400, 700, 1400, 150
 ```
 
 ```{r}
-pal_fun2 <- colorBin(c("#3A0889FF", "#2D3184FF", "#1E4F8EFF", "#09679AFF", "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", "#E5E598FF", "#C5AD40FF", "#A4661EFF", "#7E1900FF"), bins = crime_bins)
+# pal_fun2 <- colorBin(c("#3A0889FF", "#2D3184FF", "#1E4F8EFF", "#09679AFF", "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", "#E5E598FF", "#C5AD40FF", "#A4661EFF", "#7E1900FF"), bins = crime_bins)
 ```
 
 ```{r}
+pal_fun2 <- colorBin(c("#3A0889FF", "#2D3184FF", "#1E4F8EFF", "#09679AFF", "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", "#CBEDCAFF", "#E5E598FF", "#C5AD40FF", "#A4661EFF", "#7E1900FF"), bins = crime_bins)
+```
+
+
+```{r}
+# map to be used in app
 nash %>% 
       leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
       addProviderTiles("CartoDB.DarkMatter", group = "Dark Version") %>% 
@@ -712,7 +718,7 @@ nash %>%
                  popup = paste("<h3>Airbnb</h3>", no_crime$popup3, "<br>", "Name:",
                                no_crime$popup2,"<br>", no_crime$popup),
                  color= "#009E60", group = "No Crime", layerId = ~uid) %>%
-      addLegend("bottomright", pal = pal_fun2, values = ~crime_number,
+      addLegend("bottomright", colors = c("#3A0889FF", "#2D3184FF", "#1E4F8EFF", "#09679AFF", "#007DA4FF", "#0A92ACFF", "#28A4B3FF", "#43B5B8FF", "#5EC3BBFF", "#77CFBEFF", "#8FDAC0FF", "#A5E2C3FF", "#CBEDCAFF", "#E5E598FF", "#C5AD40FF", "#A4661EFF", "#7E1900FF"), labels = c("0", "1-5", "5-10", "11-15", "16-25", "26-50", "51-75", "76-100", "101-150", "151-200", "201-300", "301-400", "401-700", "701-1400", "1401-1500", "1501-1600", "1601-1700"), values = ~crime_number,
                 title = "Crimes",
                 opacity = 1) %>% 
       addLayersControl(overlayGroups =c("Airbnb",
