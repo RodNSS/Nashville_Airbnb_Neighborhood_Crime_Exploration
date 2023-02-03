@@ -53,7 +53,7 @@ ui <- fluidPage(
         label = "Filter By Crime Type",
         choices = sort(unique(crimes$Offense)),
         selected = crimes$Offense,
-        options = list(`actions-box` = TRUE),
+        options = list(`actions-box` = TRUE, size = 10),
         multiple = TRUE
       ),
       plotlyOutput("donut"),
@@ -72,16 +72,17 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   #bs_themer()
   
+  # store click as reactiveValues
   click <- reactiveValues(clickedMarker=NULL)
   
-  #define reactives 
+  # define reactive functions to filter date and crime type
   date_filter <- reactive({ 
     crimes %>% 
       filter(Date >= input$crimedates[1] & Date <= input$crimedates[2]) %>% 
       filter(Offense %in% input$crime_type)
     
   })
-  
+  # filters the data and returns based on click id
   table_data <- reactive({
     if(is.null(click$clickedMarker)){
       
@@ -96,10 +97,9 @@ server <- function(input, output, session) {
     }
     return(table_data)
   })
-  
+  # main leaflet map
   output$mymap <- renderLeaflet({
     
-    # main leaflet map
     nash %>% 
       leaflet(options = leafletOptions(minZoom = 10, preferCanvas = TRUE))  %>% 
       addProviderTiles("CartoDB.DarkMatter", group = "Dark Theme") %>% 
@@ -221,8 +221,9 @@ server <- function(input, output, session) {
              yaxis  = list(title = "Count", showgrid = T, zeroline = F, showticklabels = T))
   })
   
-  map_leaf <- leafletProxy("mymap") 
   # observer for clearing markers by clicking map
+  map_leaf <- leafletProxy("mymap") 
+  
   observeEvent(input$mymap_click,{
     map_leaf %>% clearMarkers() 
     
