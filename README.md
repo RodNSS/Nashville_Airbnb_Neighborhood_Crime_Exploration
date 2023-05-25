@@ -40,7 +40,7 @@ surrounding area.
 
 http://insideairbnb.com/get-the-data
 
-https://data.nashville.gov/Police/Metro-Nashville-Police-Department-Incidents/2u6v-ujjs
+https://data.nashville.gov/Police/Metro-Nashville-Police-Department-Incidents/2u6v-ujjs (6 months of crime data from July 2022 - Jan 2023)
 
 <b>Known Issues and Challenges</b>
 
