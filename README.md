@@ -1,5 +1,7 @@
 # Nashville-Airbnb-Neighborhood-Crime-Exploration
 
+*** Currently working on a version that automatically pulls up to date data 6/23/2023 ***
+
 Link to app: https://roderick.shinyapps.io/Nashville-Airbnb-Crime-Map/
 
 <b>Executive Summary</b>
