@@ -1,5 +1,7 @@
 # Nashville-Airbnb-Neighborhood-Crime-Exploration
 
+![](crime.gif)
+
 *** UPDATE 7/5/2023 ***
 New version uses current crime data so it stays up to date.
 
