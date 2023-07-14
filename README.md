@@ -5,6 +5,8 @@
 *** UPDATE 7/5/2023 ***
 New version uses current crime data so it stays up to date.
 
+For best viewing experience, enter full screen mode on your browser and uncheck "Always Show Toolbar in Full Screen"
+
 Link to app: https://roderick.shinyapps.io/Nashville-Airbnb-Crime-Map/
 
 <b>Executive Summary</b>
