@@ -33,19 +33,43 @@ xAxis.selectAll("text")
     .duration(1000) // Animation duration
     .style("opacity", 1); // Fade in the labels
 
-//Create the y axis
+// Calculate tick values
+var tickValues = [];
+if (ymax < 20) {
+  var numTicks = 5;
+  if (ymax < numTicks) {
+    tickValues = d3.range(0, ymax + 1);
+  } else {
+    var step = Math.ceil(ymax / (numTicks - 1));
+    for (var i = 0; i < numTicks; i++) {
+      var tickValue = i * step;
+      if (tickValue <= ymax) {
+        tickValues.push(tickValue);
+      }
+    }
+  }
+} else {
+  tickValues = d3.ticks(0, ymax, 5); // Adjust the tick count as needed
+}
+
+// Create the y axis
 var y = d3.scaleLinear()
-    .range([height, 0])
-    .domain([0, ymax]);
+  .range([height, 0])
+  .domain([0, ymax]);
+
 svg.append("g")
-    .attr("transform", "translate(" + margin + ", " + margin + ")")
-    .call(d3.axisLeft(y).tickFormat(d3.format(".0f")));
+  .attr("transform", "translate(" + margin + ", " + margin + ")")
+  .call(d3.axisLeft(y)
+    .tickValues(tickValues)
+    .tickFormat(d3.format(".0f"))); // Format the tick labels
+
 svg.append("text")
-    .attr("transform", "translate(" + (margin - 50) + " ," + ((height + 2 * margin) / 2) + ") rotate(-90)") // Adjust the positioning
-    .style("text-anchor", "middle")
-    .style("font-family", "Tahoma, Geneva, sans-serif")
-    .style("font-size", "14pt")
-    .text(options.yLabel);
+  .attr("transform", "translate(" + (margin - 50) + " ," + ((height + 2 * margin) / 2) + ") rotate(-90)") // Adjust the positioning
+  .style("text-anchor", "middle")
+  .style("font-family", "Tahoma, Geneva, sans-serif")
+  .style("font-size", "14pt")
+  .text(options.yLabel);
+
 
 //Create the chart title
 svg.append("text")
