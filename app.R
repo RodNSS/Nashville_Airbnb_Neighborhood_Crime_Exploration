@@ -444,45 +444,28 @@ server <- function(input, output, session) {
   
   # D3 barplot for locations of crime incidents
   output$chart <- renderD3({
-    if (is.null(click$clickedMarker)) {
-      table_data() %>%
-        group_by(location_description) %>%
-        summarize(count = n()) %>%
-        top_n(10, count) %>%
-        arrange(desc(count)) %>%
-        as.data.frame() %>%
-        r2d3(
-          script = "Custom_D3.js",
-          data = .,  
-          options = list(
-            margin = 50,
-            barPadding = 0.1,
-            color = "#00FFFB50",
-            xLabel = "Location Description",
-            yLabel = "Total Incidents",
-            chartTitle = "Incident Location"
-          )
-        )
-    } else {
-      table_data() %>%
-        group_by(location_description) %>%
-        summarize(count = n()) %>%
-        top_n(10, count) %>%
-        arrange(desc(count)) %>%
-        as.data.frame() %>%
-        r2d3(
-          script = "Custom_D3.js",
-          data = .,  
-          options = list(
-            margin = 50,
-            barPadding = 0.1,
-            color = "#00FFFB50",
-            xLabel = "Location Description",
-            yLabel = "Total Incidents",
-            chartTitle = "Incident Location"
-          )
-        )
-    }
+    chart_data <- table_data() %>%
+      group_by(location_description) %>%
+      summarize(count = n()) %>%
+      top_n(10, count) %>%
+      arrange(desc(count)) %>%
+      as.data.frame()
+    
+    chart_options <- list(
+      margin = 50,
+      barPadding = 0.1,
+      color = "#00FFFB50",
+      xLabel = "Location Description",
+      yLabel = "Total Incidents",
+      chartTitle = "Incident Location"
+    )
+    
+    chart_data %>%
+      r2d3(
+        script = "Custom_D3.js",
+        data = .,
+        options = chart_options
+      )
   })
   
   # define reactive color pallette that reacts to date input and crime type selection
