@@ -23,176 +23,83 @@ library(shinyWidgets)
 library(r2d3)
 
 # execute global variables file first
-source("global.r")
-
-# function to fetch data from the API
-fetchData <- function() {
-  url <- "https://data.nashville.gov/resource/2u6v-ujjs.json?$$app_token={APP_TOKEN_HERE}$limit=15000"
-  json_data <- jsonlite::fromJSON(url)
-  data <- as.data.frame(json_data)
-  
-  # extract date and time components
-  data$incident_occurred <- as.POSIXct(data$incident_occurred, format = "%Y-%m-%dT%H:%M:%S")
-  data$date <- as.Date(data$incident_occurred)
-  data$time <- format(data$incident_occurred, format = "%I:%M %p")
-  
-  # remove milliseconds from the time column
-  data$time <- sub("\\.\\d+", "", data$time)
-  
-  # create new column "time of incident"
-  data$`time of incident` <- data$time
-  
-  # remove the original "incident_occurred", "date", and "time" columns
-  data$incident_occurred <- NULL
-  data$time <- NULL
-  
-  # filter out entries with "incident_status_description" as "unfounded" and "test only"
-  data <- data[data$incident_status_description != "unfounded", ]
-  data <- data[data$offense_description != "test only", ]
-  
-  # remove rows with missing latitude or longitude values
-  data <- data[complete.cases(data[, c("latitude", "longitude")]), ]
-  
-  selected_cols <- c(
-    "incident_number", "incident_status_description", "investigation_status",
-    "incident_location", "latitude", "longitude",
-    "location_description", "offense_description", "weapon_description",
-    "victim_number", "domestic_related", "victim_description",
-    "victim_gender", "victim_race", "victim_ethnicity", "victim_county_resident",
-    "date", "time of incident"
-  )
-  
-  # use only selected columns
-  data <- data[selected_cols]
-  
-  # calculate the date 3 months ago from the current date
-  three_months_ago <- Sys.Date() - months(3)
-  
-  # filter data to exclude anything from 3 months before the current date
-  data <- data[data$date >= three_months_ago, ]
-  
-  # found duplicate offenses in slightly different format
-  data$offense_description <- gsub("burglary- motor vehicle", "burglary - motor vehicle", data$offense_description)
-  data$offense_description <- gsub("burglary- aggravated", "burglary - aggravated", data$offense_description)
-  
-  # separate crimes into categories
-  data <- data %>%
-    mutate(crime_category = case_when(
-      offense_description %in% c(
-        "AGGRAV ASSLT - FAMILY-GUN", "AGGRAV ASSLT - FAMILY-STGARM", "AGGRAV ASSLT - FAMILY-WEAPON", "AGGRAV ASSLT - NONFAMILY-GUN", 
-        "AGGRAV ASSLT - NONFAMILY-WEAPON", "AGGRAV ASSLT - POL OFF-GUN", "AGGRAV ASSLT - POL OFF-WEAPON", "AGGRAV ASSLT - PUB OFF-GUN", 
-        "ARSON - BUSINESS", "ARSON - PUB-BLDG", "ARSON - RESID", "ASSAULT", "ASSAULT OF OFFICER - BODILY INJURY", "ASSAULT- FEAR OF BODILY INJURY", 
-        "ASSAULT- OFFENSIVE OR PROVOCATIVE CONTACT", "ASSAULT, (NO INJURY, ON OFFICER/PUBLIC OFFICIAL)", "ASSAULT, AGG - DEADLY WEAPON - RECKLESS-IN CONCERT", 
-        "Assault, Agg - Deadly Weapon- Int/Kn- Acting in Concert", "ASSAULT, AGG - SERIOUS BODILY INJURY - RECKLESS-IN CONCERT", 
-        "Assault, Agg - Serious Bodily Injury- Int/Kn- Acting in Concert", "Assault, Agg - Strangulation- Int/Kn- Acting in Concert", "ASSAULT, AGG DEADLY WEAPON- INT/KN", 
-        "ASSAULT, AGG., FIRST RESPONDER, DEADLY WEAPON", "ASSAULT, AGG., NURSE, STRANGULATION", "Assault, Aggravated - Deadly Weapon - Int/Kn", 
-        "Assault, Aggravated - Deadly Weapon - Int/Kn - In Concert", "ASSAULT, AGGRAVATED - DEADLY WEAPON - INT/KN FROM MOT VEH", 
-        "Assault, Aggravated - Deadly Weapon - Reckless", "ASSAULT, AGGRAVATED - DEADLY WEAPON - RECKLESS FROM MOT VEH", "Assault, Aggravated - Death - Int/Kn", 
-        "Assault, Aggravated - Serious Bodily Injury - Reckless", "Assault, Aggravated - Strangulation - Int/Kn", "ASSAULT, AGGRAVATED - STRANGULATION-INT/KN", 
-        "ASSAULT, DOMESTIC, BODILY INJURY 2ND OFFENSE", "ASSAULT, DOMESTIC, BODILY INJURY 3RD OR MORE", "ASSAULT, FIRST RESPONDER, BODILY INJURY", 
-        "ASSAULT, FIRST RESPONDER, OFFENSIVE CONTACT", "Assault, health care provider - Bodily Injury", "Assault, health care provider - Fear of Bodily Injury", 
-        "Assault, health care provider - Offensive Contact", "ASSAULT, NURSE, BODILY INJURY", "ASSAULT, NURSE, OFFENSIVE CONTACT", 
-        "Assault, Officer/Responder - Agg - Serious Injury - Reckless", "Assault, Officer/Responder -Agg -Deadly Weapon - Int/Kn", 
-        "ASSAULT, OFFICER/RESPONDER-AGG-DEAD WPN-RECK FROM MOT VEH", "ASSAULT, VEHICULAR - 1ST OFFENSE", "ASSAULT, VEHICULAR, AGGRAVATED", 
-        "HARASSMENT- CAUSE EMOTIONAL DISTRESS, INTIMIDATE, FRIGHTEN", "HARRASSMENT (NUISANCE)", "HOMICIDE", "HOMICIDE- CRIMINAL", 
-        "HOMICIDE, JUSTIFIABLE", "INTENTIONAL AGGRAVATED ASSAULT", "KIDNAPPING, CRIMINAL ATTEMPT", "RECKLESS ENDANGERMENT-SHOOTING FROM W/IN A VEHICLE", 
-        "ROBBERY", "Robbery - Acting in Concert", "ROBBERY- AGG.- SERIOUS BODILY INJURY", "ROBBERY- ESP. AGG.", "ROBBERY, AGGRAVATED, HANDGUN", 
-        "ROBBERY, AGGRAVATED, KNIFE", "ROBBERY, AGGRAVATED, LONG GUN", "ROBBERY, AGGRAVATED, OTHER", "SIMPLE ASSLT", "SIMPLE ASSLT - STRANGULATION (NO LOSS OF CONSCIOUSNESS)", 
-        "STALKING - AGGRAVATED", "STALKING- (VALID ONLY:  7/1/92 - 6/30/95)", "STALKING- NO PRIOR CONVICTION", "THREAT OF MASS VIOLENCE IN SCHOOL", 
-        "THREAT TO BOMB", "THREAT TO BURN", "VEHICLE OFFENSE, CRIMINAL ATTEMPT", "Weapon - Dangerous Felony - w/prior conviction", "Weapon - Felon-Poss-Firearm (Drug Offense)", 
-        "Weapon - Felon-Poss-Firearm (Force,Violence,Deadly Weapon)", "WEAPON - FELON-POSS-FIREARM(DRUG OFFENSE)", "WEAPON - FELON-POSS-FIREARM(VIOLENCE, DEADLY WEAPON)", 
-        "WEAPON - FIREARM OR CLUB", "WEAPON - FIREARM OR CLUB W/PRIORS", "WEAPON OFFENSE, CRIMINAL ATTEMPT", "WEAPON- CARRYING ON SCHOOL PROPERTY"
-      ) ~ "Violent Crime",
-      offense_description %in% c(
-        "BURGL - FORCED ENTRY-NONRESID", "BURGL - NO FORCED ENTRY-NONRESID", "BURGL - SAFE-VAULT", "BURGLARY", "BURGLARY - AGGRAVATED", 
-        "BURGLARY - AGGRAVATED - ACTING IN CONCERT", "BURGLARY - ESPECIALLY AGGRAVATED", "BURGLARY - MOTOR VEHICLE", "BURGLARY (NON HABITATION)", 
-        "BURGLARY, CRIMINAL ATTEMPT", "CRIMINAL TRESPASS", "CRIMINAL TRESPASS- AGGRAVATED", "CRIMINAL TRESPASS- AGGRAVATED - HOME/SCHOOL", 
-        "CRITICAL INFRASTRUCTURE VANDALISM - $10,000 OR > BUT < $60,000", "DAMAGE PROP - BUSINESS", "DAMAGE PROP - PRIVATE", "DAMAGE PROP - PUBLIC", 
-        "DAMAGE TO PROPERTY, CRIMINAL ATTEMPT", "LARC - BICYCLE", "LARC - FROM BANKING TYPE-INST", "LARC - FROM BLDG", "LARC - FROM COIN MACHINE", 
-        "LARC - PARTS FROM VEH", "LARC - POSTAL", "LARC - RESID", "LARCENY - (FREE TEXT)", "LOST PROPERTY", "FOUND PROPERTY", "POSSESS STOLEN PROP", 
-        "Reckless Endangerment-Unoccupied Habitation", "RECOVERY, STOLEN PROPERTY", "STOLEN PROPERTY", "THEFT OF PROPERTY- > $500 BUT < $1,000", 
-        "THEFT OF PROPERTY- $1,000 OR >  BUT < $10,000", "THEFT OF PROPERTY- $10,000 OR >  BUT  < $60,000", "Theft of Property- $250,000 or more", 
-        "THEFT OF PROPERTY- $500 OR LESS", "Theft of Property- $60,000 or > but < $250,000", "THEFT OF PROPERTY->$1,000 BUT <$2,500", 
-        "THEFT OF PROPERTY-$1,000 OR LESS", "Theft of Vehicle- $60,000 or > but < $250,000", "THEFT OF VEHICLE->$1,000 BUT <$2,500", 
-        "THEFT OF VEHICLE-$1,000 OR LESS", "THEFT OF VEHICLE-2,500 OR > BUT<$10,000", "VEHICLE THEFT"
-      ) ~ "Property Crime",
-      TRUE ~ "Other"
-    ))
-  
-  return(data)
-}
+source("Global.R")
 
 # define user interface
 ui <- fluidPage(
-  useShinyjs(),
   tags$head(
-    tags$style(HTML('
-      /* add glow effect to the border lines */
-      .glow-border {
-        box-shadow: 0 0 15px #00FFFB;
-      }
-
-      /* add glow effect to the text in the title panel */
-      .glow-text {
-        text-shadow: 0 0 10px #FFFFFF, 0 0 20px #FFFFFF;
-      }
-
-      /* adjust the header title style */
-      h1.title {
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 24px;
-        font-weight: bold;
-      }
-     
-      /* adjust the table row style */
-      table.dataTable tbody tr.active td {
-        color: black !important;
-        box-shadow: inset 0 0 0 9999px "#3E45C490" !important;
-      }
-     
-      /* adjust the main panel style */
-      .mainPanel {
-        height: calc(100vh - 75px);
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      /* adjust the map height */
-      #map {
-        flex-grow: 1;
-        height: 70vh !important; 
-      }
-
-      /* adjust the reset button style */
-      .reset-button {
-        position: absolute;
-        top: 1em;
-        right: 1em;
-      }
-     
-      .mainPanel {
-        position: relative;
-        overflow: hidden;
-      }
-     
-      .output-container {
-        width: 100%;
-        height: 100px; /* set an initial height for the output container */
-        transition: height 0.3s ease; /* add smooth transition for height change */
-      }
-     
-      .collapsed {
-        height: 0 !important; /* set height to 0 when collapsed */
-        overflow: hidden; /* hide content when collapsed */
-      }
-     
-      .expanded {
-        height: 200px !important; 
-      }
-    '))
+    tags$script(type = "text/javascript",
+                js_save_map_instance,
+                js_open_popup),
+    useShinyjs()
   ),
+  tags$style(HTML('
+    /* add glow effect to the border lines */
+    .glow-border {
+      box-shadow: 0 0 15px #00FFFB;
+    }
+
+    /* add glow effect to the text in the title panel */
+    .glow-text {
+      text-shadow: 0 0 10px #FFFFFF, 0 0 20px #FFFFFF;
+    }
+
+    /* adjust the header title style */
+    h1.title {
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    /* adjust the table row style */
+    table.dataTable tbody tr.active td {
+      color: black !important;
+      box-shadow: inset 0 0 0 9999px "#3E45C490" !important;
+    }
+
+    /* adjust the main panel style */
+    .mainPanel {
+      height: calc(100vh - 75px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    /* adjust the map height */
+    #map {
+      flex-grow: 1;
+      height: 83vh !important; 
+    }
+
+    /* adjust the reset button style */
+    .reset-button {
+      position: absolute;
+      top: 1em;
+      right: 1em;
+    }
+
+    .mainPanel {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .output-container {
+      width: 100%;
+      height: 100px; /* set an initial height for the output container */
+      transition: height 0.3s ease; /* add smooth transition for height change */
+    }
+
+    .collapsed {
+      height: 0 !important; /* set height to 0 when collapsed */
+      overflow: hidden; /* hide content when collapsed */
+    }
+
+    .expanded {
+      height: 200px !important;
+    }
+  ')),
+  # overall theme colors
   theme = bslib::bs_add_rules(
     bslib::bs_theme(version = 5, bg = '#142730', fg = '#00FFFB', primary = "#00FFFB",
                     base_font = font_google("Nunito Sans")
@@ -205,35 +112,46 @@ ui <- fluidPage(
     div(
       class = "title-panel",
       tags$h1(class = "title glow-text", "Nashville Airbnb Crime Map"),
+      span(style = "margin-right: 10px;"),
+      tags$a(href = "https://github.com/RodNSS/Nashville_Airbnb_Neighborhood_Crime_Exploration", 
+             target = "_blank", 
+             icon("github", lib = "font-awesome")),
+      style = "display: flex; align-items: flex-end;"
     )
   ),
   sidebarLayout(
     sidebarPanel(
-      div(class = "glow-border sidebarPanel",
-          dateRangeInput("dateRange", label = "Date Range", format = "yyyy-mm-dd"),
-          pickerInput(
-            inputId = "crime_type",
-            label = "Filter By Crime Type",
-            choices = NULL,
-            options = list(`actions-box` = TRUE, size = 10),
-            multiple = TRUE
-          ),
-          plotlyOutput("sunburst"),
-          d3Output("chart")
+      div(
+        class = "glow-border sidebarPanel",
+        dateRangeInput("dateRange", label = "Date Range", format = "yyyy-mm-dd"),
+        pickerInput(
+          inputId = "crime_type",
+          label = "Filter By Crime Type",
+          choices = NULL,
+          options = list(`actions-box` = TRUE, size = 10),
+          multiple = TRUE
+        ),
+        plotlyOutput("sunburst"),
+        d3Output("chart")
       )
     ),
     mainPanel(
-      div(class = "glow-border mainPanel",
-          leafletOutput("map"),
-          div(class = "button-container",
-              actionButton('resetButton', 'Reset'),
-              span(actionButton('toggleSizeButton', 'Expand Map'),
-                   style = "position:absolute;right:1em;"),
-          ),
-          div(id = "outputContainer",
-              style = "width: 100%; height: calc(100vh - 200px); overflow-y: auto;",
-              DT::dataTableOutput("table"),
+      div(
+        class = "glow-border mainPanel",
+        leafletOutput("map"),
+        div(
+          class = "button-container",
+          actionButton('resetButton', 'Reset'),
+          span(
+            actionButton('toggleSizeButton', 'Expand Map'),
+            style = "position:absolute;right:1em;"
           )
+        ),
+        div(
+          id = "outputContainer",
+          style = "width: 100%; height: calc(100vh - 100px); overflow-y: auto;",
+          DT::dataTableOutput("table")
+        )
       )
     )
   )
@@ -271,37 +189,12 @@ server <- function(input, output, session) {
     shinyjs::runjs("window.dispatchEvent(new Event('resize'));")  # trigger a window resize event to align viewport correctly
     
   })
-
-  # store click as reactiveValues for leaflet map click events
-  click <- reactiveValues(clickedMarker=NULL)
   
   # save the data from the API as a reactive expression
-  crimes <- reactive({  
-    data <- fetchData() 
-    data$uid <- seq.int(nrow(data))  # add a unique identifier column to the data
-    data  # return the modified data as the output of the reactive expression
-  })
-  
-  # define a reactive expression for unique offenses to use as choices in pickerInput 
-  unique_offense_description <- reactiveVal()
-  
-  # define the eventReactive expression to fetch data and update pickerInput choices based on the date range
-  updatePickerChoices <- eventReactive(input$dateRange, {
-    
-    filtered_data <- data[data$Date >= input$dateRange[1] & data$Date <= input$dateRange[2], ]
-    
-    unique_offense_description(sort(unique(filtered_data$offense_description)))
-    
-    updatePickerInput(
-      session = session,
-      inputId = "crime_type",
-      choices = unique_offense_description(),
-      selected = unique_offense_description(),
-      options = list(`actions-box` = TRUE, size = 10)
-    )
-    
-    filtered_data
-    
+  crimes <- reactive({
+    data <- fetchData()
+    data$uid <- seq.int(nrow(data)) # add a unique identifier column to the data for filtering
+    data
   })
   
   # define a reactive expression to filter data based on date range and selected crime types
@@ -310,11 +203,29 @@ server <- function(input, output, session) {
     data[data$Date >= input$dateRange[1] & data$Date <= input$dateRange[2] & data$offense_description %in% input$crime_type, ]
   })
   
-  # define a reactive expression to convert filtered data to a spatial object
+  # define a reactive expression to convert filtered crime data to a spatial object for mapping
   crimes_sf <- reactive({
     data <- filtered_data() 
     filtered_data <- data[data$offense_description %in% input$crime_type, ]
     st_as_sf(filtered_data, coords = c("longitude", "latitude"), crs = 4326)
+  })
+  
+  # define a reactive expression for unique offenses to use as choices in pickerInput
+  unique_offense_description <- reactiveVal()
+  
+  # define the eventReactive expression to fetch data and update pickerInput choices based on the date range
+  updatePickerChoices <- eventReactive(input$dateRange, {
+    data <- crimes()
+    filtered_data <- data[data$Date >= input$dateRange[1] & data$Date <= input$dateRange[2], ]
+    unique_offense_description(sort(unique(filtered_data$offense_description)))
+    updatePickerInput(
+      session = session,
+      inputId = "crime_type",
+      choices = unique_offense_description(),
+      selected = unique_offense_description(),
+      options = list(`actions-box` = TRUE, size = 10)
+    )
+    filtered_data
   })
   
   # update the pickerInput choices when the date range changes
@@ -322,12 +233,7 @@ server <- function(input, output, session) {
     updatePickerChoices()
   })
   
-  # define a reactive expression to locate crimes within a quarter mile of Airbnb properties
-  quarter_mile <- reactive({
-    st_is_within_distance(ab_sf, crimes_sf(), dist = 402.336)
-  })
-  
-  # update the date range input based on the available data
+  # update the date range input based on the data
   observe({
     data <- crimes()
     if (!is.null(data)) {
@@ -338,25 +244,18 @@ server <- function(input, output, session) {
     }
   })
   
-  # reset the page when the reset button is clicked
-  observeEvent(input$resetButton, {
-    updatePickerChoices()
-    proxy <- DT::dataTableProxy('table')
-    DT::replaceData(proxy, table_data())
-    click$clickedMarker <- NULL
-    
-    # reset the pickerInput selection
-    updatePickerInput(
-      session = session,
-      inputId = "crime_type",
-      selected = unique_offense_description()
-    )
+  # define a reactive expression to locate crimes within a quarter mile of Airbnb properties
+  quarter_mile <- reactive({
+    st_is_within_distance(ab_sf, crimes_sf(), dist = 402.336)
   })
   
   # define a reactive expression for the indices of crimes within a quarter mile
   quarter_mile_indices <- reactive({
     quarter_mile()
   })
+  
+  # store click as reactiveValues for leaflet map click events
+  click <- reactiveValues(clickedMarker=NULL)
   
   # filter the data based on the clicked marker ID
   table_data <- reactive({
@@ -406,37 +305,49 @@ server <- function(input, output, session) {
     }
   })
   
-  # sunburst chart for crimes within a quarter mile of Airbnb
+  # reset the datatable and charts after an Airbnb property click event
+  observeEvent(input$resetButton, {
+    updatePickerChoices()
+    proxy <- DT::dataTableProxy('table')
+    DT::replaceData(proxy, table_data())
+    click$clickedMarker <- NULL
+    
+    # reset the pickerInput selection
+    updatePickerInput(
+      session = session,
+      inputId = "crime_type",
+      selected = unique_offense_description()
+    )
+  })
+  
+  # sunburst chart for crimes within a quarter mile of airbnb
   output$sunburst <- renderPlotly({
-    if (is.null(click$clickedMarker)) {
+    if(is.null(click$clickedMarker)
+    ) 
       table_data() %>%
-        count(paste(nrow(table_data()), "Crimes"), crime_category, offense_description) %>%
-        counts_to_sunburst() %>%
-        layout(
-          colorway = c("#3E45C490", "#FFA50099", "#FF004D90"),
-          paper_bgcolor = '#142730',
-          title = "All Crimes In Nashville",
-          font = list(color = "#00FFFB"),
-          margin = mrg,
-          showlegend = FALSE,
-          xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-          yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)
-        )
-    } else {
+      count(paste(nrow(table_data()),"Crimes"), crime_category, offense_description) %>%
+      counts_to_sunburst() %>%
+      layout(colorway = c("#3E45C490", "#FFA50099", "#FF004D90"), 
+             paper_bgcolor='#142730',
+             title = "All Crimes In Nashville", 
+             font = list(color = "#00FFFB"),
+             margin = mrg,
+             showlegend = F,
+             xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+             yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
+    else
       table_data() %>%
-        count(paste(nrow(table_data()), "Crimes"), crime_category, offense_description) %>%
-        counts_to_sunburst() %>%
-        layout(
-          colorway = c("#3E45C490", "#FFA50099", "#FF004D90"),
-          paper_bgcolor = '#142730',
-          title = paste(nrow(table_data()), "crimes within a quarter mile"),
-          margin = mrg,
-          showlegend = FALSE,
-          font = list(color = "#00FFFB"),
-          xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-          yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE)
-        )
-    }
+      count(paste(nrow(table_data()),"Crimes"), crime_category, offense_description) %>%
+      counts_to_sunburst() %>%
+      layout(colorway = c("#3E45C490", "#FFA50099", "#FF004D90"),
+             paper_bgcolor='#142730',
+             title = paste(nrow(table_data()), "crimes within a quarter mile"), 
+             margin = mrg, 
+             showlegend = F, 
+             font = list(color = "#00FFFB"),
+             xaxis = list(showgrid = F, zeroline = F, showticklabels = F),
+             yaxis = list(showgrid = F, zeroline = F, showticklabels = F))
+    
   })
   
   # set colors for D3 barchart to match theme of app
@@ -444,28 +355,45 @@ server <- function(input, output, session) {
   
   # D3 barplot for locations of crime incidents
   output$chart <- renderD3({
-    chart_data <- table_data() %>%
-      group_by(location_description) %>%
-      summarize(count = n()) %>%
-      top_n(10, count) %>%
-      arrange(desc(count)) %>%
-      as.data.frame()
-    
-    chart_options <- list(
-      margin = 50,
-      barPadding = 0.1,
-      color = "#00FFFB50",
-      xLabel = "Location Description",
-      yLabel = "Total Incidents",
-      chartTitle = "Incident Location"
-    )
-    
-    chart_data %>%
-      r2d3(
-        script = "Custom_D3.js",
-        data = .,
-        options = chart_options
-      )
+    if (is.null(click$clickedMarker)) {
+      table_data() %>%
+        group_by(location_description) %>%
+        summarize(count = n()) %>%
+        top_n(10, count) %>%
+        arrange(desc(count)) %>%
+        as.data.frame() %>%
+        r2d3(
+          script = "Custom_D3.js",
+          data = .,  
+          options = list(
+            margin = 50,
+            barPadding = 0.1,
+            color = "#00FFFB50",
+            xLabel = "Location Description",
+            yLabel = "Total Incidents",
+            chartTitle = "Incident Location"
+          )
+        )
+    } else {
+      table_data() %>%
+        group_by(location_description) %>%
+        summarize(count = n()) %>%
+        top_n(10, count) %>%
+        arrange(desc(count)) %>%
+        as.data.frame() %>%
+        r2d3(
+          script = "Custom_D3.js",
+          data = .,  
+          options = list(
+            margin = 50,
+            barPadding = 0.1,
+            color = "#00FFFB50",
+            xLabel = "Location Description",
+            yLabel = "Total Incidents",
+            chartTitle = "Incident Location"
+          )
+        )
+    }
   })
   
   # define reactive color pallette that reacts to date input and crime type selection
@@ -521,80 +449,83 @@ server <- function(input, output, session) {
     }
   })
   
-  # Leaflet map code
+  # leaflet map 
   output$map <- renderLeaflet({
-    leaflet() %>% 
-      addTiles(mapbox, attribution) %>%
-      clearMarkers() %>%
+    leaflet() %>%
+      addTiles(mapbox, attribution) %>% 
+      addLayersControl(
+        overlayGroups = c("Airbnb", "Crime Layer"),
+        options = layersControlOptions(collapsed = TRUE)
+      ) %>% 
+      setView(lat = 36.1627, lng = -86.7816, zoom = 11) %>%
+      addSearchFeatures(
+        targetGroups ="Airbnb", 
+        options = searchFeaturesOptions(zoom = 14,
+                                        openPopup = TRUE, 
+                                        firstTipSubmit = TRUE,
+                                        autoCollapse = TRUE, 
+                                        hideMarkerOnCollapse = TRUE,
+                                        textPlaceholder = "Search For An Airbnb Property")) %>%
+      addResetMapButton()
+  })
+  
+  # add Airbnb circles and crime markers to the map
+  observe({
+    leafletProxy("map") %>%
+      clearGroup("Airbnb") %>%
       addCircles(
         data = airbnb_data(),
         radius = 3,
         weight = 2,
         opacity = 1,
         fillOpacity = 1,
-        label = paste(
-          airbnb_data()$name,
-          "<br>Total Crimes Within A Quarter Mile:",
-          airbnb_data()$crime_number
-        ) %>% lapply(htmltools::HTML),
+        label = paste(airbnb_data()$name, 
+                      "<br>Total Crimes Within A Quarter Mile:", 
+                      airbnb_data()$crime_number) %>% 
+          lapply(htmltools::HTML),
         group = "Airbnb",
         layerId = ~uid,
         color = ~color_palette()(crime_number),
-        popup = paste(
-          "<h3>Airbnb</h3>",
-          airbnb$popup3,
-          "<br>",
-          "Name:",
-          airbnb$popup2,
-          "<br>",
-          airbnb$popup
-        )
-      ) %>%
-      addSearchFeatures(
-        targetGroups = "Airbnb",
-        options = searchFeaturesOptions(
-          zoom = 12,
-          openPopup = TRUE,
-          firstTipSubmit = TRUE,
-          autoCollapse = TRUE,
-          hideMarkerOnCollapse = TRUE,
-          textPlaceholder = "Search For An Airbnb Property"
-        )
-      ) %>%
+        popup = paste("<h3>Airbnb</h3>", airbnb$popup3, 
+                      "<br>Name:", airbnb$popup2,
+                      "<br>", airbnb$popup)) %>%
+      clearGroup("Crime Layer") %>% 
       addCircleMarkers(
         data = crimes_sf(),
         radius = 3,
         weight = 3,
         color = "red",
         layerId = as.character(crimes_sf()$id),
-        label = paste(
-          crimes_sf()$offense_description,
-          "<br>Date:",
-          crimes_sf()$`Date`,
-          "<br>Time:",
-          crimes_sf()$`Time of Incident`
-        ) %>% lapply(htmltools::HTML),
+        label = paste("<b>", crimes_sf()$offense_description, "</b>", 
+                      "<br>Date:", crimes_sf()$`Date`, 
+                      "<br>Time:", crimes_sf()$`Time of Incident`,
+                      "<br>Incident #:", crimes_sf()$incident_number, 
+                      "<br>Street:", crimes_sf()$incident_location, 
+                      "<br>Location Type:", crimes_sf()$location_description,
+                      "<br>Weapon:", crimes_sf()$weapon_description) %>% 
+          lapply(htmltools::HTML), 
+        popup = paste("<b>", crimes_sf()$offense_description, "</b>", 
+                      "<br>Date:", crimes_sf()$`Date`, 
+                      "<br>Time:", crimes_sf()$`Time of Incident`,
+                      "<br>Incident #:", crimes_sf()$incident_number, 
+                      "<br>Street:", crimes_sf()$incident_location, 
+                      "<br>Location Type:", crimes_sf()$location_description,
+                      "<br>Weapon:", crimes_sf()$weapon_description),
         group = "Crime Layer",
-        clusterOptions = markerClusterOptions(spiderfyDistanceMultiplier = 1.5)
+        clusterOptions = markerClusterOptions(
+          spiderfyDistanceMultiplier = 1.5) 
       ) %>% 
-      setView(lat = 36.1627, lng = -86.7816, zoom = 11) %>% 
-      addResetMapButton() %>%
       addLegend(
         "bottomright",
         pal = color_palette(),
         values = airbnb_data()$crime_number,
-        labels = label_ranges(),
         opacity = 1,
         title = "Crimes",
         layerId = "legend"
-      ) %>%
-      addLayersControl(
-        overlayGroups = c("Airbnb", "Crime Layer"),
-        options = layersControlOptions(collapsed = TRUE)
       )
   })
   
-  # render datatable with certain columns 
+  # render datatable with certain columns
   output$table <- DT::renderDataTable({
     filtered_data <- table_data()[, c(
       "incident_number", "incident_status_description",
@@ -617,16 +548,45 @@ server <- function(input, output, session) {
       "Victim Ethnicity", "Victim County Resident"
     )
     
-    DT::datatable(
-      filtered_data,
-      selection = "single",
-      options = list(
-        scrollX = TRUE,
-        scrollY = "340px"
-      )
+    DT::datatable(filtered_data, 
+                  selection = "single",
+                  options = list(
+                    scrollX = TRUE,
+                    scrollY = "320px"
+                  )
     )
   })
   
+  # add icons to the map and open popup on datatable row click
+  observeEvent(input$table_rows_selected, {
+    selected_row <- table_data()[input$table_rows_selected, ]
+    id <- paste0("marker", input$table_rows_selected)
+    icon_url <- getIconUrl(selected_row$offense_description)
+    
+    leafletProxy("map") %>%
+      addMarkers(
+        lng = as.numeric(selected_row$longitude),
+        lat = as.numeric(selected_row$latitude),
+        layerId = id,
+        icon = makeIcon(iconUrl = icon_url, iconWidth = 30, iconHeight = 30, iconAnchorY = 20),
+        popup = paste("<b>", selected_row$offense_description, "</b>", 
+                      "<br>Date:", selected_row$Date, 
+                      "<br>Time:", selected_row$`Time of Incident`,
+                      "<br>Incident #:", selected_row$incident_number, 
+                      "<br>Street:", selected_row$incident_location, 
+                      "<br>Location Type:", selected_row$location_description,
+                      "<br>Weapon:", selected_row$weapon_description),
+        group = "Markers"
+      ) 
+    
+    # uses JS function from Global.R to open popup on map
+    shinyjs::runjs(sprintf("setTimeout(() => open_popup('%s'), 20)", id))
+  })
+  
+  # clear markers by clicking map
+  observeEvent(input$map_click,{
+    leafletProxy("map") %>% clearMarkers()
+  })
 }
 
 shinyApp(ui, server)
