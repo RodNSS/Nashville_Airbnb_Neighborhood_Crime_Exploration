@@ -4,9 +4,9 @@
 
 This application aims to function as both a crime map for Nashville, TN as well as a visualization of Airbnb properties
 in relation to surrounding crime incidents. Currently, the app pulls about 3 months of crime data from the API and 
-plots them on a map in clusters that can be filtered by crime type and date of occurrence. The dark purple to light green 
-dots on the map are Airbnb properties that are color coded based on the amount of crimes that have taken place within a quarter 
-mile of each property.
+plots the instances on a map in clusters that can be filtered by crime type and date of occurrence. The dark purple 
+to light green dots on the map are Airbnb properties that are color coded based on the amount of crimes that have 
+taken place within a quarter mile of each property.
 
 For best viewing experience, enter full screen mode on your browser and uncheck "Always Show Toolbar in Full Screen." I built
 the app using a 15 inch screen (2880 x 1800) and a 27 inch external monitor (3840 X 2160) but I realize the layout may look
