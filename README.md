@@ -10,7 +10,7 @@ taken place within a quarter mile of each property.
 
 For best viewing experience, enter full screen mode on your browser and uncheck "Always Show Toolbar in Full Screen." I built
 the app using a 15 inch screen (2880 x 1800) and a 27 inch external monitor (3840 X 2160) but I realize the layout may look
-less than ideal on different sized screens. I plan on fixing this and add features that enhance the user experinece in future 
+less than ideal on different sized screens. I plan on fixing this and adding features that enhance the user experinece in future 
 updates.
 
 Link to app: https://roderick.shinyapps.io/Nashville-Airbnb-Crime-Map/
