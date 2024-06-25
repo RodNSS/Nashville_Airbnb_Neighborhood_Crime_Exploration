@@ -14,7 +14,7 @@ the app using a 15 inch screen (2880 x 1800) and a 27 inch external monitor (384
 less than ideal on different sized screens. I plan on fixing this and adding features that enhance the user experinece in future 
 updates. I also plan on possibly expanding this idea to other cities where current crime data is available.
 
-Link to app: https://roderick.shinyapps.io/Nashville-Airbnb-Crime-Map/
+Link to app: https://roderick.shinyapps.io/airbnb_test_6-25-2024/
 
 Below is the original summary I wrote for my Midcourse project at Nashville Software School.
 
