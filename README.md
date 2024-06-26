@@ -56,7 +56,7 @@ surrounding area.
 
 http://insideairbnb.com/get-the-data
 
-https://datanashvillegov-nashville.hub.arcgis.com/datasets/e8eface241d34e5c8ff1fd4c28ebd93e_0/explore
+https://datanashvillegov-nashville.hub.arcgis.com/maps/d747436243e9439e968fce056545016a
 
 <b>Known Issues and Challenges</b>
 
