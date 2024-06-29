@@ -28,27 +28,27 @@ airbnb <- read_csv("listings.csv")
 mapbox <- Sys.getenv("MAPBOX_API_KEY")
 attribution <- "© <a href='https://www.mapbox.com/about/maps/'>Mapbox</a> © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a"
 
-# Pull in stored shots fired and shooting data from google sheets
+# pull in stored shots fired and shooting data from google sheets
 shots <- gsheet2tbl('google_sheets_link')
 
-# Drop rows with any NA values
+# drop rows with any NA values
 shots <- shots[complete.cases(shots), ]
 
-# Format to "year-month-day"
+# format to "year-month-day"
 shots$Date <- mdy(shots$Date)  
 #shots$Date <- as.Date(shots$Date, format = "%Y-%m-%d")
 
-# Parse and format the time
+# parse and format the time
 shots$Time <- strftime(strptime(shots$Time, format = "%H:%M:%S"), format = "%l:%M %p")
 
-# Filter data to exclude anything from 3 months before the current date
+# filter data to exclude anything from 3 months before the current date
 three_months_ago <- Sys.Date() - months(3)
 shots <- shots[shots$Date >= three_months_ago, ]
 
-# Define the threshold for coordinate variation to avoid duplicate calls for same incident
+# define the threshold for coordinate variation to avoid duplicate calls for same incident
 threshold <- 0.1 
 
-# Filter out incidents where the coordinates vary by more than one-tenth of a degree
+# filter out incidents where the coordinates vary by more than one-tenth of a degree
 filtered_results <- shots %>%
   group_by(Date, Time, City) %>%
   filter(max(Lat) - min(Lat) > threshold | max(Long) - min(Long) > threshold) %>%
@@ -62,17 +62,17 @@ shots <- shots %>%
       TRUE ~ Incident_Type
     )
   ) %>%
-  # Filter out duplicate Shooting/Shots Fired incidents based on conditions
+  # filter out duplicate Shooting/Shots Fired incidents based on conditions
   group_by(Date, Time, Address) %>%
   filter(!(Incident_Type == "SHOTS FIRED" & "SHOOTING" %in% Incident_Type)) %>%
   ungroup() %>%
-  # Keep only unique combinations of Date, Time, and City
+  # keep only unique combinations of Date, Time, and City
   distinct(Date, Time, City, .keep_all = TRUE)
 
-# Combine the distinct and filtered results
+# combine the distinct and filtered results
 shots <- bind_rows(filtered_results, shots)
 
-# Specify column mapping for join
+# specify column mapping for join
 column_mapping <- c("Time" = "Time of Incident",
                     "Date" = "Date",
                     "Lat" = "Latitude",
@@ -80,12 +80,12 @@ column_mapping <- c("Time" = "Time of Incident",
                     "Incident_Type" = "Offense_Description",
                     "Full_Address" = "Incident_Location")
 
-# Subset and rename columns in shots based on the column_mapping
+# subset and rename columns in shots based on the column_mapping
 shots <- shots %>%
   select(all_of(names(column_mapping))) %>%
   rename_with(~ column_mapping[.], everything())
 
-# Function to fetch data with offset pagination
+# function to fetch data with offset pagination
 fetchData <- function(url, max_records = 2000, total_records = 16000) {
   url <- "https://services2.arcgis.com/HdTo6HJqh92wn4D8/arcgis/rest/services/Metro_Nashville_Police_Department_Incidents_view/FeatureServer/0/query"
   all_data <- list()
@@ -95,7 +95,7 @@ fetchData <- function(url, max_records = 2000, total_records = 16000) {
   
   while(more_records && records_fetched < total_records) {
     
-    # Define query parameters with pagination
+    # define query parameters with pagination
     query_params <- list(
       outFields = "Incident_Number,Investigation_Status,Incident_Location,Latitude,Longitude,Location_Description,Offense_Description,Weapon_Description,Victim_Number,Domestic_Related,Victim_Description,Victim_Gender,Victim_Race,Victim_Ethnicity,Victim_County_Resident,Incident_Occurred,Incident_Status_Description",
       where = "Incident_Occurred > CURRENT_TIMESTAMP - INTERVAL '90' DAY",
@@ -104,49 +104,49 @@ fetchData <- function(url, max_records = 2000, total_records = 16000) {
       resultRecordCount = max_records
     )
     
-    # Make GET request
+    # make GET request
     response <- GET(url, query = query_params)
     if (http_error(response)) {
       stop("HTTP request failed: ", http_status(response)$reason)
     }
     
-    # Parse JSON response content
+    # parse JSON response content
     content <- content(response, "text", encoding = "UTF-8")
     geojson_content <- st_read(content, quiet = TRUE)
     
-    # Append data to list
+    # append data to list
     all_data <- append(all_data, list(geojson_content))
     
-    # Update offset and records fetched
+    # update offset and records fetched
     records_fetched <- records_fetched + nrow(geojson_content)
     offset <- offset + max_records
     
-    # Check if there are more records to fetch
+    # check if there are more records to fetch
     if (nrow(geojson_content) < max_records) {
       more_records <- FALSE
     }
   }
   
-  # Combine all fetched data and remove duplicates
+  # combine all fetched data and remove duplicates
   all_data_combined <- do.call(rbind, all_data)
   all_data_combined <- distinct(all_data_combined)  
   data <- st_drop_geometry(all_data_combined)
   
-  # Convert milliseconds to Central US Time
+  # convert milliseconds to Central US Time
   data$Incident_Occurred <- as.POSIXct(data$Incident_Occurred / 1000, origin = "1970-01-01", tz = "UTC")
   data$Incident_Occurred <- format(data$Incident_Occurred, tz = "America/Chicago", usetz = TRUE)
   data$Incident_Occurred <- format(as.POSIXct(data$Incident_Occurred, tz = "America/Chicago"), "%m-%d-%Y %l:%M %p")
   
-  # Create separate Date and Time column and remove Incident_Occurred column
+  # create separate Date and Time column and remove Incident_Occurred column
   data$Date <- as.Date(data$Incident_Occurred, format = "%m-%d-%Y %l:%M %p")
   data$`Time of Incident` <- format(as.POSIXct(data$Incident_Occurred, format = "%m-%d-%Y %l:%M %p"), format = "%l:%M %p")
   data$Incident_Occurred <- NULL
   
-  # Filter out entries with "Incident_Status_Description" as "UNFOUNDED"
+  # filter out entries with "Incident_Status_Description" as "UNFOUNDED"
   data <- data[data$Incident_Status_Description != "UNFOUNDED", ]
   data <- data[data$Offense_Description != "TEST ONLY", ]
   
-  # Remove rows with missing latitude or longitude values
+  # remove rows with missing latitude or longitude values
   data <- data[complete.cases(data[, c("Latitude", "Longitude")]), ]
   
   selected_cols <- c(
@@ -160,15 +160,15 @@ fetchData <- function(url, max_records = 2000, total_records = 16000) {
   
   data <- data[selected_cols]
   
-  # Found duplicate offenses in slightly different format
+  # found duplicate offenses in slightly different format
   data$Offense_Description <- gsub("BURGLARY- MOTOR VEHICLE", "BURGLARY - MOTOR VEHICLE", data$Offense_Description)
   data$Offense_Description <- gsub("BURGLARY- AGGRAVATED", "BURGLARY - AGGRAVATED", data$Offense_Description)
   
-  # Combine dataframes and lowercase column names
+  # combine dataframes and lowercase column names
   data <- bind_rows(data, shots)
   names(data) <- tolower(names(data))
   
-  # Separate crimes into categories
+  # separate crimes into categories
   data <- data %>%
     mutate(crime_category = case_when(
       offense_description %in% c("AGGRAV ASSLT - FAMILY-GUN", "AGGRAV ASSLT - FAMILY-STGARM", "AGGRAV ASSLT - FAMILY-WEAPON", "AGGRAV ASSLT - NONFAMILY-GUN", 
