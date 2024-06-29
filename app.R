@@ -21,6 +21,7 @@ library(htmltools)
 library(htmlwidgets)
 library(shinyWidgets)
 library(r2d3)
+library(gsheet)
 
 # execute global variables file first
 source("Global.R")
