@@ -2,19 +2,21 @@
 
 ![](airbnb.gif)
 
-This application aims to function as both a crime map for Nashville, TN as well as a visualization of Airbnb properties
-in relation to surrounding crime incidents. Currently, the app pulls about 3 months of crime data from the API and 
-plots the instances on a map in clusters that can be filtered by crime type and date of occurrence. The dark purple 
-to light green dots on the map are Airbnb rentals that are color coded based on the amount of crimes that have 
-taken place within a quarter mile of each property. When you click a property on the map, the app returns a summary of 
-the amount/type of crime surrounding that particular Airbnb within the given distance threshold.
+This application aims to function as both a crime map for Nashville, TN as well as a visualization of Airbnb rentals and 
+properties for sale in relation to surrounding crime incidents. Currently, the app pulls about 3 months of crime 
+data from the API and plots the instances on a map in clusters that can be filtered by crime type and date of 
+occurrence. The dark purple to light green dots on the map are properties that are color coded based on the amount 
+of crimes that have taken place within a quarter mile of each property. When you click a property on the map, the 
+app returns a summary of the amount/type of crime surrounding that particular Airbnb within the given distance threshold.
 
 For best viewing experience, enter full screen mode on your browser and uncheck "Always Show Toolbar in Full Screen." I built
 the app using a 15 inch screen (2880 x 1800) and a 27 inch external monitor (3840 X 2160) but I realize the layout may look
 less than ideal on different sized screens. I plan on fixing this and adding features that enhance the user experinece in future 
 updates. I also plan on possibly expanding this idea to other cities where current crime data is available.
 
-Link to app: https://roderick.shinyapps.io/Nashville-Airbnb-Crime-Map/
+Link to Airbnb app: https://roderick.shinyapps.io/Nashville-Airbnb-Crime-Map/
+
+Link to For Sale Property app: https://roderick.shinyapps.io/Nashville-Property-Crime-Map/ - (more accurate due to having the actual address)
 
 Below is the original summary I wrote for my Midcourse project at Nashville Software School.
 
