@@ -148,11 +148,30 @@ ui <- fluidPage(
             style = "position:absolute;right:1em;"
           )
         ),
+        tags$style(HTML('table.dataTable tr.active td, table.dataTable td.active {background-color: #00FFFB !important;}')),
         div(
           id = "outputContainer",
           style = "width: 100%; height: calc(100vh - 100px); overflow-y: auto;",
           DT::dataTableOutput("table")
-        )
+        ),
+        # JS for sending click event when property is selected in search bar
+        tags$script(HTML("
+      $(document).on('shiny:connected', function() {
+        Shiny.setInputValue('leaflet_search_control_ready', true);
+      });
+      
+      Shiny.addCustomMessageHandler('initialize_search_control', function(message) {
+        var map = $('#map').data('leaflet-map');
+        if (map && map.searchControl) {
+          map.searchControl.on('search:locationfound', function(e) {
+            var id = e.layer && e.layer.options ? e.layer.options.layerId : null;
+            Shiny.setInputValue('map_shape_click', {
+              id: id
+            }, {priority: 'event'});
+          });
+        }
+      });
+    "))
       )
     )
   )
@@ -160,6 +179,12 @@ ui <- fluidPage(
 
 # define server logic
 server <- function(input, output, session) {
+
+  # event handler for property selections from the search bar.
+  observe({
+    req(input$leaflet_search_control_ready)
+    session$sendCustomMessage("initialize_search_control", list())
+  })
   
   tableState <- reactiveVal(FALSE)  # create a reactive value to store state of table - expanded or collapsed
   
