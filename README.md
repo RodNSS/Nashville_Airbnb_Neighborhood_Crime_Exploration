@@ -1,6 +1,6 @@
 # Nashville-Airbnb-Neighborhood-Crime-Exploration
 
-![](crime.gif)
+![](airbnb.gif)
 
 This application aims to function as both a crime map for Nashville, TN as well as a visualization of Airbnb properties
 in relation to surrounding crime incidents. Currently, the app pulls about 3 months of crime data from the API and 
