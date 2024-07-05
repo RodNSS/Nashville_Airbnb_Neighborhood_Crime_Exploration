@@ -7,7 +7,7 @@ properties for sale in relation to surrounding crime incidents. Currently, the a
 data from the API and plots the instances on a map in clusters that can be filtered by crime type and date of 
 occurrence. The dark purple to light green dots on the map are properties that are color coded based on the amount 
 of crimes that have taken place within a quarter mile of each property. When you click a property on the map, the 
-app returns a summary of the amount/type of crime surrounding that particular Airbnb within the given distance threshold.
+app returns a summary of the amount/type of crime surrounding that particular property within the given distance threshold.
 
 For best viewing experience, enter full screen mode on your browser and uncheck "Always Show Toolbar in Full Screen." I built
 the app using a 15 inch screen (2880 x 1800) and a 27 inch external monitor (3840 X 2160) but I realize the layout may look
