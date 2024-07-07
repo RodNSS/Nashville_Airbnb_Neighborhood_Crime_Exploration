@@ -352,7 +352,7 @@ server <- function(input, output, session) {
       table_data() %>%
       count(paste(nrow(table_data()),"Crimes"), crime_category, offense_description) %>%
       counts_to_sunburst() %>%
-      layout(colorway = c("#3E45C490", "#FFA50099", "#FF004D90"), 
+      layout(#colorway = c("#3E45C490", "#FFA50099", "#FF004D90"), 
              paper_bgcolor='#142730',
              title = "All Crimes In Nashville", 
              font = list(color = "#00FFFB"),
@@ -364,7 +364,7 @@ server <- function(input, output, session) {
       table_data() %>%
       count(paste(nrow(table_data()),"Crimes"), crime_category, offense_description) %>%
       counts_to_sunburst() %>%
-      layout(colorway = c("#3E45C490", "#FFA50099", "#FF004D90"),
+      layout(#colorway = c("#3E45C490", "#FFA50099", "#FF004D90"),
              paper_bgcolor='#142730',
              title = paste(nrow(table_data()), "crimes within a quarter mile"), 
              margin = mrg, 
