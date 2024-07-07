@@ -271,6 +271,26 @@ getIconUrl <- function(offense_description) {
 counts_to_sunburst <- function(count_data, fill_by_n = FALSE, sort_by_n = FALSE){
   
   params <- create_all_col_params(count_data, fill_by_n, sort_by_n)
+
+  # create custom color mapping function so colors remain the same for each crime category
+  get_color <- function(category) {
+    if (grepl("Violent Crime", category)) "#FF004D90"
+    else if (grepl("Property Crime", category)) "#FFA50099"
+    else if (grepl("Other", category)) "#3E45C490"
+    else NA  # make the root (center) colorless
+  }
+  
+  # assign colors based on the level and category
+  color_vector <- sapply(seq_along(params$ids), function(i) {
+    id_parts <- strsplit(params$ids[i], "\\.->.") %>% unlist()
+    if (length(id_parts) == 1) {
+      NA  # root (center) remains colorless
+    } else if (length(id_parts) == 2) {
+      get_color(id_parts[2])  # second level (main categories)
+    } else {
+      get_color(id_parts[2])  # offenses inherit parent category color
+    }
+  })
   
   purrr::exec(plotly::plot_ly,
               !!!params,
@@ -279,11 +299,12 @@ counts_to_sunburst <- function(count_data, fill_by_n = FALSE, sort_by_n = FALSE)
               hoverinfo = "text",
               textinfo = "label+percent parent",
               textfont = list(color = "#00FFFB"),
-              marker = list(#colors = virid,
-                line = list(color = "#00FFFB", 
-                            width = 1)))
+              marker = list(
+                colors = color_vector,
+                line = list(color = "#00FFFB", width = 1)
+              )
+  )
 }
-
 
 #' @export
 #' @rdname count_to_sunburst
