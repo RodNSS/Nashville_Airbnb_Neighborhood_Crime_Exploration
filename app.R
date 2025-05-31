@@ -262,12 +262,18 @@ server <- function(input, output, session) {
   observe({
     data <- crimes()
     if (!is.null(data)) {
-      minDate <- min(data$Date)
-      maxDate <- max(data$Date)
-      updateDateRangeInput(session, "dateRange", start = minDate, end = maxDate,
+    
+      data$date <- as.Date(data$date)
+
+      minDate <- min(data$date, na.rm = TRUE)
+      maxDate <- max(data$date, na.rm = TRUE)
+
+      updateDateRangeInput(session, "dateRange",
+                           start = minDate, end = maxDate,
                            min = minDate, max = maxDate)
     }
   })
+
   
   # define a reactive expression to locate crimes within a quarter mile of Airbnb properties
   quarter_mile <- reactive({
