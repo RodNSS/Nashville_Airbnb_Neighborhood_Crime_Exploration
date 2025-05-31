@@ -42,7 +42,7 @@ shots$Date <- mdy(shots$Date)
 shots$Time <- strftime(strptime(shots$Time, format = "%H:%M:%S"), format = "%l:%M %p")
 
 # filter data to exclude anything from 3 months before the current date
-three_months_ago <- Sys.Date() - months(3)
+three_months_ago <- Sys.Date() %m-% months(3)
 shots <- shots[shots$Date >= three_months_ago, ]
 
 # define the threshold for coordinate variation to avoid duplicate calls for same incident
